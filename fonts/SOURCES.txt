@@ -1,0 +1,2 @@
+Noto Color Emoji: Google, SIL OFL 1.1. Font from fonts.gstatic.com.
+Twemoji COLR: Nerixyz/twemoji-colr-font v0.0.2, based on jdecked/twemoji graphics (CC BY 4.0).

@@ -4,19 +4,29 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Emoji Maze</title>
+<link id="emoji-font-style" rel="stylesheet" href="fonts/twemoji.css">
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
+  :root { --emoji-font: "Twemoji COLR"; }
+  body { font-family: var(--emoji-font), system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
   h1 { font-size: 1.3rem; }
   .goal { font-size: 1.1rem; margin-bottom: 0.5rem; }
   .here { font-size: 1.4rem; margin: 0.5rem 0; }
   .inventory { color: #9cf; margin-bottom: 0.5rem; min-height: 1.2em; }
   .choices { list-style: none; padding: 0; }
   .choices li { padding: 0.3rem 0; font-size: 1.2rem; cursor: pointer; }
-  .choices li:hover { background: #222; }
+  button { font-family: var(--emoji-font), system-ui, sans-serif; background: transparent; color: #eee; border: 0; border-radius: 6px; padding: .35rem .55rem; cursor: pointer; }
+  button:hover { background: #b91c1c; }
+  .emoji-button { font-size: 1.25rem; margin: .12rem; }
+  .toolbar button { border: 1px solid #444; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .7rem 0; }
+  #selection { min-height: 2.5rem; }
+  .choices li { cursor: default; }
   .help { color: #888; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
   input { font-size: 1.1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; background: #222; color: #eee; border: 1px solid #444; }
   .streak { color: #fc6; }
   .msg { color: #f66; min-height: 1.2em; }
+  .font-picker { font-size: .75rem; color: #888; margin-top: 1rem; }
+  .font-picker select { background: #111; color: #aaa; border: 1px solid #444; font-size: inherit; }
 </style>
 </head>
 <body>
@@ -25,14 +35,24 @@
   <div class="here" id="here"></div>
   <div class="inventory" id="inventory"></div>
   <ul class="choices" id="choices"></ul>
-  <input id="command" autocomplete="off" placeholder="1-5, inventory letters, combine e.g. 25q, +1..+5, -<letter>, 0, quit" />
+  <div id="selection"></div>
+  <div class="toolbar">
+    <button id="move">Move</button><button id="clear">Clear</button>
+    <button id="random">Random jump</button>
+    <button id="new-game">New game</button>
+  </div>
+  <input id="command" autocomplete="off" placeholder="1-9, inventory letters, combine e.g. 25q, +1..+9, -<letter>, 0, quit" />
   <div class="msg" id="msg"></div>
-  <div class="help">digits + inventory letters sum a vector | 0: random jump | +1..+5: save to inventory | -&lt;letter&gt;: remove | quit: new game</div>
+  <div class="help">digits + inventory letters sum a vector | 0: random jump | +1..+9: save to inventory | -&lt;letter&gt;: remove | quit: new game</div>
 
+  <label class="font-picker">Emoji font:
+    <select id="emoji-font"><option value="twemoji">Twemoji COLR</option><option value="noto">Noto Color Emoji</option></select>
+  </label>
   <script src="data.js"></script>
   <script src="maze.js"></script>
+  <script src="neighbors.js"></script>
   <script>
-    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [] };
+    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [] };
 
     function loadData() {
       state.items = EMOJI_META.items;
@@ -44,6 +64,7 @@
     function startNewGame(firstTime) {
       const start = Math.floor(Math.random() * state.count);
       state.goal = window.MazeLib.randomDestination(state.count, start);
+      state.selection = [];
       state.position = [start];
       state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, start).slice();
       if (!firstTime) state.inventory = [];
@@ -53,22 +74,78 @@
     function render() {
       const { items, vectors, dims, count, position, inventory } = state;
       state.choices = window.MazeLib.nearestNeighborsFromVector(
-        vectors, dims, count, state.positionVector, [...position, ...inventory], 5
+        vectors, dims, count, state.positionVector, [...position, ...inventory], 9
       );
-      document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name} | Streak: ${state.streak}`;
+      const steps = window.MazeLib.goalReached(vectors, dims, count, state.positionVector, state.goal)
+        ? 0 : window.MazeLib.shortestDirectPath(EMOJI_NEIGHBORS, state.choices, state.goal, inventory);
+      document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name} | Streak: ${state.streak} | Steps: ${steps === null ? "no path" : steps}`;
       document.getElementById("here").textContent = `You are here: ${window.MazeLib.describePosition(items, position)}`;
-      const inv = inventory.length
-        ? "Inventory: " + inventory.map((idx, i) => `${window.MazeLib.INVENTORY_KEYS[i]}:${items[idx].emoji}`).join("  ")
-        : "Inventory: empty";
-      document.getElementById("inventory").textContent = inv;
+      const inv = document.getElementById("inventory");
+      inv.replaceChildren(document.createTextNode(inventory.length ? "Inventory: " : "Inventory: empty"));
+      inventory.forEach((idx, i) => {
+        inv.appendChild(emojiButton(idx, `${window.MazeLib.INVENTORY_KEYS[i]}: `));
+        const remove = document.createElement("button");
+        remove.textContent = "×";
+        remove.title = `Remove ${items[idx].name}`;
+        remove.onclick = () => runCommand("-" + window.MazeLib.INVENTORY_KEYS[i]);
+        inv.appendChild(remove);
+      });
       const list = document.getElementById("choices");
       list.innerHTML = "";
       state.choices.forEach((idx, i) => {
         const li = document.createElement("li");
-        li.textContent = `${i + 1}. ${items[idx].emoji}  ${items[idx].name}`;
-        li.onclick = () => runCommand(String(i + 1));
+        const branch = window.MazeLib.nearestNeighborsFromVector(
+          vectors, dims, count, window.MazeLib.getVector(vectors, dims, idx), [idx, ...inventory], 9
+        );
+        li.appendChild(emojiButton(idx, `${i + 1}. `));
+        const save = document.createElement("button");
+        save.textContent = "+";
+        save.title = `Save ${items[idx].name}`;
+        save.onclick = () => runCommand("+" + (i + 1));
+        li.appendChild(save);
+        li.appendChild(document.createTextNode(" → "));
+        for (const neighbor of branch) li.appendChild(emojiButton(neighbor));
         list.appendChild(li);
       });
+      renderSelection();
+    }
+
+    function emojiButton(index, prefix = "") {
+      const button = document.createElement("button");
+      button.className = "emoji-button";
+      button.dataset.emojiIndex = index;
+      button.textContent = prefix + state.items[index].emoji;
+      button.title = state.items[index].name;
+      button.onclick = () => {
+        state.selection.push(index);
+        renderSelection();
+      };
+      return button;
+    }
+
+    function renderSelection() {
+      const box = document.getElementById("selection");
+      box.replaceChildren(document.createTextNode("Expression: "));
+      state.selection.forEach((index, position) => {
+        if (position) box.appendChild(document.createTextNode(" + "));
+        const button = emojiButton(index);
+        button.title += " — click to remove";
+        button.onclick = () => { state.selection.splice(position, 1); renderSelection(); };
+        box.appendChild(button);
+      });
+      document.getElementById("move").disabled = state.selection.length === 0;
+    }
+
+    function applyExpression(indices) {
+      if (!indices.length) return;
+      state.position = [...indices];
+      state.positionVector = window.MazeLib.sumVectors(state.vectors, state.dims, indices);
+      state.selection = [];
+      setMsg("");
+      if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
+        state.streak += 1;
+        startNewGame(false);
+      } else render();
     }
 
     function setMsg(text) {
@@ -86,12 +163,13 @@
       if (command === "0") {
         const current = window.MazeLib.nearestNeighborsFromVector(state.vectors, state.dims, state.count, state.positionVector, [], 1)[0];
         const destination = window.MazeLib.randomDestination(state.count, current);
+        state.selection = [];
         state.position = [destination];
         state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, destination).slice();
         render();
         return;
       }
-      if (command.length === 2 && command[0] === "+" && "12345".includes(command[1])) {
+      if (command.length === 2 && command[0] === "+" && "123456789".includes(command[1])) {
         const idx = state.choices[Number(command[1]) - 1];
         if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or inventory is full.");
         render();
@@ -103,19 +181,11 @@
         return;
       }
       const newPosition = window.MazeLib.selectedIndicesForCommand(state.choices, state.inventory, command);
-      const newVector = window.MazeLib.vectorForCommand(state.vectors, state.dims, state.choices, state.inventory, command);
-      if (newVector !== null) {
-        state.position = newPosition;
-        state.positionVector = newVector;
-        if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
-          state.streak += 1;
-          startNewGame(false);
-        } else {
-          render();
-        }
+      if (newPosition.length) {
+        applyExpression(newPosition);
         return;
       }
-      setMsg("Use digits 1-5 and inventory letters, +digit, -letter, 0, or quit.");
+      setMsg("Use digits 1-9 and inventory letters, +digit, -letter, 0, or quit.");
     }
 
     document.getElementById("command").addEventListener("keydown", (e) => {
@@ -126,6 +196,21 @@
       }
     });
 
+    document.getElementById("move").onclick = () => applyExpression(state.selection);
+    document.getElementById("clear").onclick = () => { state.selection = []; renderSelection(); };
+    document.getElementById("random").onclick = () => runCommand("0");
+    document.getElementById("new-game").onclick = () => runCommand("quit");
+    function selectEmojiFont(value) {
+      const selected = value === "noto" ? "noto" : "twemoji";
+      document.getElementById("emoji-font").value = selected;
+      document.getElementById("emoji-font-style").setAttribute("href", `fonts/${selected}.css`);
+      document.documentElement.style.setProperty("--emoji-font", selected === "noto" ? '"Noto Color Emoji"' : '"Twemoji COLR"');
+      try { localStorage.setItem("emoji-maze-font", selected); } catch (_) {}
+    }
+    document.getElementById("emoji-font").onchange = event => selectEmojiFont(event.target.value);
+    let savedFont = "twemoji";
+    try { savedFont = localStorage.getItem("emoji-maze-font") || savedFont; } catch (_) {}
+    selectEmojiFont(savedFont);
     loadData();
     startNewGame(true);
   </script>

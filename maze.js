@@ -1,7 +1,7 @@
 // Core vector-space logic for Emoji Maze, ported 1:1 from game.py.
 // Pure functions operate on a flat Float32Array of shape [count, dims].
 
-const NEIGHBOR_COUNT = 5;
+const NEIGHBOR_COUNT = 9;
 const INVENTORY_KEYS = "qwertyuiopasdfghjklzxcvbnm";
 
 function getVector(vectors, dims, index) {
@@ -54,7 +54,7 @@ function removeFromInventory(inventory, key) {
 function selectedIndicesForCommand(choices, inventory, command) {
   const selected = [];
   for (const symbol of command) {
-    if ("12345".includes(symbol)) {
+    if ("123456789".includes(symbol)) {
       selected.push(choices[Number(symbol) - 1]);
     } else {
       const position = INVENTORY_KEYS.indexOf(symbol);
@@ -140,3 +140,29 @@ if (typeof window !== "undefined") {
 if (typeof module !== "undefined") {
   module.exports.base64ToFloat32Array = base64ToFloat32Array;
 }
+
+function shortestDirectPath(rankings, firstChoices, goal, inventory = []) {
+  const blocked = new Set(inventory);
+  const distances = new Int32Array(rankings.length).fill(-1);
+  const queue = [];
+  for (const index of firstChoices) {
+    if (distances[index] !== -1) continue;
+    distances[index] = 1;
+    queue.push(index);
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const node = queue[head];
+    if (node === goal) return distances[node];
+    let available = 0;
+    for (const next of rankings[node]) {
+      if (blocked.has(next)) continue;
+      if (++available > NEIGHBOR_COUNT) break;
+      if (distances[next] !== -1) continue;
+      distances[next] = distances[node] + 1;
+      queue.push(next);
+    }
+  }
+  return null;
+}
+
+if (typeof window !== "undefined") window.MazeLib.shortestDirectPath = shortestDirectPath;
