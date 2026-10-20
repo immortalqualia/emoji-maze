@@ -9,7 +9,7 @@
   :root { --emoji-font: "Twemoji COLR"; }
   body { font-family: var(--emoji-font), system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
   h1 { font-size: 1.3rem; }
-  .goal { font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .goal { font-size: 1.4rem; margin-bottom: 0.5rem; }
   .here { font-size: 1.4rem; margin: 0.5rem 0; }
   .inventory { color: #9cf; margin-bottom: 0.5rem; min-height: 1.2em; }
   .choices { list-style: none; padding: 0; }
@@ -19,40 +19,106 @@
   .emoji-button { font-size: 1.25rem; margin: .12rem; }
   .toolbar button { border: 1px solid #444; }
   .toolbar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .7rem 0; }
-  #selection { min-height: 2.5rem; }
+  .expression-row { display: flex; align-items: center; gap: .5rem; max-width: 520px; }
+  #expression-field { display: flex; align-items: center; flex-wrap: wrap; flex: 1; min-width: 0; min-height: 2.7rem; background: #222; border: 1px solid #444; padding: .15rem .35rem; box-sizing: border-box; }
+  #expression-field:focus-within { border-color: #888; }
+  #selection { display: contents; }
+  #move { flex-shrink: 0; background: #b91c1c; border: 1px solid #ef4444; color: #fff; font-size: 1.15rem; font-weight: 700; padding: .7rem 1.3rem; border-radius: 10px; }
+  #move:hover:not(:disabled) { background: #dc2626; }
+  #move:disabled { opacity: .4; cursor: default; }
+  #expression-field #command { flex: 1; min-width: 2rem; width: 2rem; border: 0; outline: none; background: transparent; }
   .choices li { cursor: default; }
   .help { color: #888; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
   input { font-size: 1.1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; background: #222; color: #eee; border: 1px solid #444; }
   .streak { color: #fc6; }
   .msg { color: #f66; min-height: 1.2em; }
+  #goal-timing, #goal-total { font-size: .85rem; color: #aaa; }
+  #goal-history { padding-left: 1.5rem; font-size: .9rem; }
   .font-picker { font-size: .75rem; color: #888; margin-top: 1rem; }
   .font-picker select { background: #111; color: #aaa; border: 1px solid #444; font-size: inherit; }
+  #goal-flash { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; z-index: 100; background: radial-gradient(circle, rgba(255,210,110,.5), transparent 65%); }
+  #goal-flash span { font-family: var(--emoji-font), system-ui, sans-serif; font-size: clamp(5rem, 18vw, 10rem); filter: drop-shadow(0 0 24px #ffd36b); }
+  #goal-flash.active { animation: goal-flash .85s ease-out both; }
+  #goal-flash.active span { animation: goal-pop .85s ease-out both; }
+  @keyframes goal-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes goal-pop { 0% { transform: scale(.5); } 35% { transform: scale(1.2); } 100% { transform: scale(1.5); } }
+  #next-goal { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: .7rem; pointer-events: none; opacity: 0; z-index: 99; }
+  #next-goal .next-emoji { font-family: var(--emoji-font), system-ui, sans-serif; font-size: clamp(5rem, 18vw, 10rem); filter: drop-shadow(0 0 18px rgba(255,255,255,.9)) drop-shadow(0 0 55px rgba(255,255,255,.55)); }
+  #next-goal .next-label { color: #fff; font: 700 .95rem system-ui, sans-serif; letter-spacing: .16em; text-shadow: 0 2px 12px #000; }
+  #next-goal.active { animation: next-goal-arrive 2.2s .85s both; }
+  @keyframes next-goal-arrive {
+    0% { opacity: 0; transform: scale(.08); filter: blur(35px); }
+    18% { opacity: .65; transform: scale(.45); filter: blur(22px); }
+    40% { opacity: 1; transform: scale(1); filter: blur(0); }
+    70% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+    100% { opacity: 0; transform: scale(1.2) translateY(-20px); filter: blur(6px); }
+  }
+  @media (prefers-reduced-motion: reduce) { #goal-flash.active, #goal-flash.active span { animation-duration: .2s; } #next-goal.active { animation: goal-flash 1s .2s both; } }
+  .cheat-panel { margin-top: 1.5rem; max-width: 520px; }
+  #cheat-message { font-size: .8rem; color: #888; margin-top: .3rem; }
 </style>
 </head>
 <body>
+  <div id="goal-flash" aria-hidden="true"><span></span></div>
+  <div id="next-goal" aria-hidden="true"><span class="next-emoji"></span><span class="next-label">FIND THIS EMOJI</span></div>
   <h1>Emoji Maze</h1>
-  <div class="goal" id="goal"></div>
   <div class="here" id="here"></div>
-  <div class="inventory" id="inventory"></div>
   <ul class="choices" id="choices"></ul>
-  <div id="selection"></div>
+
+  <div class="inventory" id="inventory"></div>
+  <div class="expression-row">
+    <div id="expression-field">
+      <span id="selection"></span>
+      <input id="command" autocomplete="off" placeholder="Expression: 1-9, memory letters, e.g. 25q" />
+    </div>
+    <button id="move">Move</button>
+  </div>
   <div class="toolbar">
-    <button id="move">Move</button><button id="clear">Clear</button>
+    <button id="clear">Clear</button>
     <button id="random">Random jump</button>
     <button id="new-game">New game</button>
   </div>
-  <input id="command" autocomplete="off" placeholder="1-9, inventory letters, combine e.g. 25q, +1..+9, -<letter>, 0, quit" />
+  <div class="goal" id="goal"></div>
+  <div id="goal-timing"></div>
+  <ol id="goal-history"></ol>
+  <div id="goal-total"></div>
   <div class="msg" id="msg"></div>
-  <div class="help">digits + inventory letters sum a vector | 0: random jump | +1..+9: save to inventory | -&lt;letter&gt;: remove | quit: new game</div>
+  <div class="help">digits + memory letters sum a vector | 0: random jump | +1..+9: save to memory | -&lt;letter&gt;: remove | quit: new game</div>
 
   <label class="font-picker">Emoji font:
     <select id="emoji-font"><option value="twemoji">Twemoji COLR</option><option value="noto">Noto Color Emoji</option></select>
   </label>
+  <div class="cheat-panel">
+    <input id="cheat-emoji" autocomplete="off" placeholder="God mode: paste an emoji to teleport (resets statistics)" aria-label="God mode teleport" />
+    <div id="cheat-message"></div>
+  </div>
   <script src="data.js"></script>
   <script src="maze.js"></script>
   <script src="neighbors.js"></script>
+  <script src="sounds-data.js"></script>
   <script>
-    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [] };
+    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [], completedGoals: [], goalStartedAt: 0, goalRandoms: 0, totalRandoms: 0, goalStart: 0, goalSteps: 0, totalSteps: 0, goalHadNoPath: false, godMode: false, steps: null };
+
+    const sounds = Object.fromEntries(["closer", "farther", "no-path", "victory"].map(name => {
+      const audio = new Audio(EMOJI_SOUNDS[name]);
+      audio.preload = "auto";
+      audio.volume = .65;
+      return [name, audio];
+    }));
+
+    function playSound(name) {
+      for (const audio of Object.values(sounds)) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      sounds[name].play().catch(() => {});
+    }
+
+    function playStepSound(before, after) {
+      if (after === null) playSound("no-path");
+      else if (after < (before ?? 0)) playSound("closer");
+      else if (after > (before ?? 0)) playSound("farther");
+    }
 
     function loadData() {
       state.items = EMOJI_META.items;
@@ -64,10 +130,21 @@
     function startNewGame(firstTime) {
       const start = Math.floor(Math.random() * state.count);
       state.goal = window.MazeLib.randomDestination(state.count, start);
+      state.goalStartedAt = performance.now();
+      state.goalRandoms = 0;
+      state.goalStart = start;
+      state.goalSteps = 0;
+      state.goalHadNoPath = false;
       state.selection = [];
       state.position = [start];
       state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, start).slice();
       if (!firstTime) state.inventory = [];
+      const initialChoices = window.MazeLib.nearestNeighborsFromVector(
+        state.vectors, state.dims, state.count, state.positionVector, [start], 9
+      );
+      state.goalHadNoPath = window.MazeLib.shortestDirectPath(
+        EMOJI_NEIGHBORS, initialChoices, state.goal, state.inventory
+      ) === null;
       render();
     }
 
@@ -78,12 +155,13 @@
       );
       const steps = window.MazeLib.goalReached(vectors, dims, count, state.positionVector, state.goal)
         ? 0 : window.MazeLib.shortestDirectPath(EMOJI_NEIGHBORS, state.choices, state.goal, inventory);
-      document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name} | Streak: ${state.streak} | Steps: ${steps === null ? "no path" : steps}`;
+      state.steps = steps;
+      document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name}` + (state.godMode ? "" : ` | Streak: ${state.streak} | Steps: ${steps === null ? "no path" : steps}`);
       document.getElementById("here").textContent = `You are here: ${window.MazeLib.describePosition(items, position)}`;
       const inv = document.getElementById("inventory");
-      inv.replaceChildren(document.createTextNode(inventory.length ? "Inventory: " : "Inventory: empty"));
+      inv.replaceChildren(document.createTextNode(inventory.length ? "Memory: " : "Memory: empty"));
       inventory.forEach((idx, i) => {
-        inv.appendChild(emojiButton(idx, `${window.MazeLib.INVENTORY_KEYS[i]}: `));
+        inv.appendChild(emojiButton(idx));
         const remove = document.createElement("button");
         remove.textContent = "×";
         remove.title = `Remove ${items[idx].name}`;
@@ -108,6 +186,7 @@
         list.appendChild(li);
       });
       renderSelection();
+      renderGoalHistory();
     }
 
     function emojiButton(index, prefix = "") {
@@ -125,7 +204,8 @@
 
     function renderSelection() {
       const box = document.getElementById("selection");
-      box.replaceChildren(document.createTextNode("Expression: "));
+      box.replaceChildren();
+      document.getElementById("command").placeholder = state.selection.length ? "" : "Expression: 1-9, memory letters, e.g. 25q";
       state.selection.forEach((index, position) => {
         if (position) box.appendChild(document.createTextNode(" + "));
         const button = emojiButton(index);
@@ -133,19 +213,70 @@
         button.onclick = () => { state.selection.splice(position, 1); renderSelection(); };
         box.appendChild(button);
       });
-      document.getElementById("move").disabled = state.selection.length === 0;
+      document.getElementById("move").disabled = state.selection.length === 0 && !document.getElementById("command").value.trim();
     }
 
     function applyExpression(indices) {
       if (!indices.length) return;
+      const previousSteps = state.steps;
+      state.goalSteps += 1;
+      state.totalSteps += 1;
       state.position = [...indices];
       state.positionVector = window.MazeLib.sumVectors(state.vectors, state.dims, indices);
       state.selection = [];
       setMsg("");
       if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
-        state.streak += 1;
+        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath });
+        if (!state.godMode) state.streak += 1;
+        playSound("victory");
+        flashGoal(state.goal);
         startNewGame(false);
-      } else render();
+        showNextGoal();
+      } else {
+        render();
+        playStepSound(previousSteps, state.steps);
+      }
+    }
+
+    function flashGoal(index) {
+      const flash = document.getElementById("goal-flash");
+      flash.querySelector("span").textContent = state.items[index].emoji;
+      flash.classList.remove("active");
+      void flash.offsetWidth;
+      flash.classList.add("active");
+    }
+
+    function showNextGoal() {
+      const overlay = document.getElementById("next-goal");
+      overlay.querySelector(".next-emoji").textContent = state.items[state.goal].emoji;
+      overlay.classList.remove("active");
+      void overlay.offsetWidth;
+      overlay.classList.add("active");
+    }
+
+    function formatTime(milliseconds) {
+      const seconds = Math.floor(milliseconds / 1000);
+      return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    }
+
+    function renderGoalHistory() {
+      if (state.godMode) {
+        document.getElementById("goal-timing").textContent = "";
+        document.getElementById("goal-history").replaceChildren();
+        document.getElementById("goal-total").textContent = "GOD MODE";
+        return;
+      }
+      document.getElementById("goal-timing").textContent = `Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+      const list = document.getElementById("goal-history");
+      list.replaceChildren();
+      for (const entry of state.completedGoals) {
+        const item = state.items[entry.index];
+        const li = document.createElement("li");
+        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}`;
+        list.appendChild(li);
+      }
+      const total = state.completedGoals.reduce((sum, entry) => sum + entry.milliseconds, 0);
+      document.getElementById("goal-total").textContent = `Completed goals total: ${formatTime(total)} | Total moves: ${state.totalSteps} | Random jumps: ${state.totalRandoms}`;
     }
 
     function setMsg(text) {
@@ -157,26 +288,42 @@
       setMsg("");
       if (!command) return;
       if (command === "quit" || command === "exit") {
+        state.godMode = false;
+        state.streak = 0;
+        state.completedGoals = [];
+        state.totalRandoms = 0;
+        state.totalSteps = 0;
+        document.getElementById("command").value = "";
+        document.getElementById("cheat-emoji").value = "";
+        document.getElementById("cheat-message").textContent = "";
+        document.getElementById("goal-flash").classList.remove("active");
+        document.getElementById("next-goal").classList.remove("active");
         startNewGame(false);
         return;
       }
       if (command === "0") {
+        const previousSteps = state.steps;
+        state.goalRandoms += 1;
+        state.totalRandoms += 1;
+        state.goalSteps += 1;
+        state.totalSteps += 1;
         const current = window.MazeLib.nearestNeighborsFromVector(state.vectors, state.dims, state.count, state.positionVector, [], 1)[0];
         const destination = window.MazeLib.randomDestination(state.count, current);
         state.selection = [];
         state.position = [destination];
         state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, destination).slice();
         render();
+        playStepSound(previousSteps, state.steps);
         return;
       }
       if (command.length === 2 && command[0] === "+" && "123456789".includes(command[1])) {
         const idx = state.choices[Number(command[1]) - 1];
-        if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or inventory is full.");
+        if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or memory is full.");
         render();
         return;
       }
       if (command.length === 2 && command[0] === "-") {
-        if (!window.MazeLib.removeFromInventory(state.inventory, command[1])) setMsg("No inventory item with that key.");
+        if (!window.MazeLib.removeFromInventory(state.inventory, command[1])) setMsg("No memory item with that key.");
         render();
         return;
       }
@@ -185,7 +332,7 @@
         applyExpression(newPosition);
         return;
       }
-      setMsg("Use digits 1-9 and inventory letters, +digit, -letter, 0, or quit.");
+      setMsg("Use digits 1-9 and memory letters, +digit, -letter, 0, or quit.");
     }
 
     document.getElementById("command").addEventListener("keydown", (e) => {
@@ -196,7 +343,15 @@
       }
     });
 
-    document.getElementById("move").onclick = () => applyExpression(state.selection);
+    document.getElementById("move").onclick = () => {
+      const input = document.getElementById("command");
+      if (input.value.trim()) {
+        runCommand(input.value);
+        input.value = "";
+      } else applyExpression(state.selection);
+      renderSelection();
+    };
+    document.getElementById("command").addEventListener("input", renderSelection);
     document.getElementById("clear").onclick = () => { state.selection = []; renderSelection(); };
     document.getElementById("random").onclick = () => runCommand("0");
     document.getElementById("new-game").onclick = () => runCommand("quit");
@@ -211,8 +366,32 @@
     let savedFont = "twemoji";
     try { savedFont = localStorage.getItem("emoji-maze-font") || savedFont; } catch (_) {}
     selectEmojiFont(savedFont);
+    document.getElementById("cheat-emoji").addEventListener("input", event => {
+      const emoji = event.target.value.trim();
+      const message = document.getElementById("cheat-message");
+      if (!emoji) { message.textContent = ""; return; }
+      const index = state.items.findIndex(item => item.emoji === emoji);
+      if (index === -1) { message.textContent = "Emoji not in this set."; return; }
+      if (!state.godMode) {
+        state.streak = 0;
+        state.completedGoals = [];
+        state.totalRandoms = 0;
+        state.totalSteps = 0;
+        state.goalSteps = 0;
+        state.goalRandoms = 0;
+        state.goalStartedAt = performance.now();
+      }
+      state.godMode = true;
+      applyExpression([index]);
+      event.target.value = "";
+      message.textContent = "";
+    });
     loadData();
     startNewGame(true);
+    setInterval(() => {
+      if (state.godMode) return;
+      document.getElementById("goal-timing").textContent = `Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+    }, 1000);
   </script>
 </body>
 </html>
