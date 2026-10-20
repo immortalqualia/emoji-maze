@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emoji Maze</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
+  h1 { font-size: 1.3rem; }
+  .goal { font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .here { font-size: 1.4rem; margin: 0.5rem 0; }
+  .inventory { color: #9cf; margin-bottom: 0.5rem; min-height: 1.2em; }
+  .choices { list-style: none; padding: 0; }
+  .choices li { padding: 0.3rem 0; font-size: 1.2rem; cursor: pointer; }
+  .choices li:hover { background: #222; }
+  .help { color: #888; font-size: 0.85rem; margin: 0.5rem 0 1rem; }
+  input { font-size: 1.1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; background: #222; color: #eee; border: 1px solid #444; }
+  .streak { color: #fc6; }
+  .msg { color: #f66; min-height: 1.2em; }
+</style>
+</head>
+<body>
+  <h1>Emoji Maze</h1>
+  <div class="goal" id="goal"></div>
+  <div class="here" id="here"></div>
+  <div class="inventory" id="inventory"></div>
+  <ul class="choices" id="choices"></ul>
+  <input id="command" autocomplete="off" placeholder="1-5, inventory letters, combine e.g. 25q, +1..+5, -<letter>, 0, quit" />
+  <div class="msg" id="msg"></div>
+  <div class="help">digits + inventory letters sum a vector | 0: random jump | +1..+5: save to inventory | -&lt;letter&gt;: remove | quit: new game</div>
+
+  <script src="data.js"></script>
+  <script src="maze.js"></script>
+  <script>
+    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [] };
+
+    function loadData() {
+      state.items = EMOJI_META.items;
+      state.count = EMOJI_META.count;
+      state.dims = EMOJI_META.dims;
+      state.vectors = window.MazeLib.base64ToFloat32Array(EMOJI_VECTORS_B64);
+    }
+
+    function startNewGame(firstTime) {
+      const start = Math.floor(Math.random() * state.count);
+      state.goal = window.MazeLib.randomDestination(state.count, start);
+      state.position = [start];
+      state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, start).slice();
+      if (!firstTime) state.inventory = [];
+      render();
+    }
+
+    function render() {
+      const { items, vectors, dims, count, position, inventory } = state;
+      state.choices = window.MazeLib.nearestNeighborsFromVector(
+        vectors, dims, count, state.positionVector, [...position, ...inventory], 5
+      );
+      document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name} | Streak: ${state.streak}`;
+      document.getElementById("here").textContent = `You are here: ${window.MazeLib.describePosition(items, position)}`;
+      const inv = inventory.length
+        ? "Inventory: " + inventory.map((idx, i) => `${window.MazeLib.INVENTORY_KEYS[i]}:${items[idx].emoji}`).join("  ")
+        : "Inventory: empty";
+      document.getElementById("inventory").textContent = inv;
+      const list = document.getElementById("choices");
+      list.innerHTML = "";
+      state.choices.forEach((idx, i) => {
+        const li = document.createElement("li");
+        li.textContent = `${i + 1}. ${items[idx].emoji}  ${items[idx].name}`;
+        li.onclick = () => runCommand(String(i + 1));
+        list.appendChild(li);
+      });
+    }
+
+    function setMsg(text) {
+      document.getElementById("msg").textContent = text || "";
+    }
+
+    function runCommand(raw) {
+      const command = raw.trim().toLowerCase();
+      setMsg("");
+      if (!command) return;
+      if (command === "quit" || command === "exit") {
+        startNewGame(false);
+        return;
+      }
+      if (command === "0") {
+        const current = window.MazeLib.nearestNeighborsFromVector(state.vectors, state.dims, state.count, state.positionVector, [], 1)[0];
+        const destination = window.MazeLib.randomDestination(state.count, current);
+        state.position = [destination];
+        state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, destination).slice();
+        render();
+        return;
+      }
+      if (command.length === 2 && command[0] === "+" && "12345".includes(command[1])) {
+        const idx = state.choices[Number(command[1]) - 1];
+        if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or inventory is full.");
+        render();
+        return;
+      }
+      if (command.length === 2 && command[0] === "-") {
+        if (!window.MazeLib.removeFromInventory(state.inventory, command[1])) setMsg("No inventory item with that key.");
+        render();
+        return;
+      }
+      const newPosition = window.MazeLib.selectedIndicesForCommand(state.choices, state.inventory, command);
+      const newVector = window.MazeLib.vectorForCommand(state.vectors, state.dims, state.choices, state.inventory, command);
+      if (newVector !== null) {
+        state.position = newPosition;
+        state.positionVector = newVector;
+        if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
+          state.streak += 1;
+          startNewGame(false);
+        } else {
+          render();
+        }
+        return;
+      }
+      setMsg("Use digits 1-5 and inventory letters, +digit, -letter, 0, or quit.");
+    }
+
+    document.getElementById("command").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const input = e.target;
+        runCommand(input.value);
+        input.value = "";
+      }
+    });
+
+    loadData();
+    startNewGame(true);
+  </script>
+</body>
+</html>
