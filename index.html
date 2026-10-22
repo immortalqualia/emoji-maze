@@ -58,6 +58,14 @@
   #cheat-message { font-size: .8rem; color: #888; margin-top: .3rem; }
   .mode-picker { display: block; font-size: .85rem; color: #aaa; margin: .4rem 0; }
   .mode-picker input { width: auto; accent-color: #dc2626; }
+  #memory-menu { background: #222; color: #eee; border: 1px solid #555; border-radius: 12px; padding: 1rem; max-width: calc(100vw - 3rem); }
+  #memory-menu::backdrop { background: rgba(0,0,0,.45); }
+  #memory-menu button { min-height: 44px; padding: .6rem 1rem; margin-top: .6rem; }
+  #memory-delete { background: #b91c1c; }
+  @media (hover: none) and (pointer: coarse) {
+    .save-button, .remove-button { display: none; }
+    .emoji-button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  }
 </style>
 </head>
 <body>
@@ -81,7 +89,7 @@
     <button id="new-game">New game</button>
   </div>
   <div class="goal" id="goal"></div>
-  <label class="mode-picker" title="Targets only the 110 unreachable emojis. Changing mode starts a new game.">
+  <label class="mode-picker" title="Targets only the unreachable pool for the selected emoji set. Changing mode starts a new game.">
     <input type="checkbox" id="impossible-mode"> Impossible mode
   </label>
   <div id="goal-timing"></div>
@@ -97,12 +105,21 @@
     <input id="cheat-emoji" autocomplete="off" placeholder="God mode: paste an emoji to teleport (resets statistics)" aria-label="God mode teleport" />
     <div id="cheat-message"></div>
   </div>
+  <label class="font-picker">Emoji set:
+    <select id="emoji-version" title="Changing the emoji set starts a new game."><option value="1.0" selected>1.0</option><option value="15.0">15.0</option></select>
+  </label>
+  <dialog id="memory-menu">
+    <div id="memory-menu-item"></div>
+    <button id="memory-delete">Delete</button>
+    <button id="memory-cancel">Cancel</button>
+  </dialog>
   <script src="data.js"></script>
   <script src="maze.js"></script>
   <script src="neighbors.js"></script>
+  <script src="version-1.js"></script>
   <script src="sounds-data.js"></script>
   <script>
-    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [], completedGoals: [], goalStartedAt: 0, goalRandoms: 0, totalRandoms: 0, goalStart: 0, goalSteps: 0, totalSteps: 0, goalHadNoPath: false, godMode: false, steps: null };
+    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [], completedGoals: [], goalStartedAt: 0, goalRandoms: 0, totalRandoms: 0, goalStart: 0, goalSteps: 0, totalSteps: 0, goalHadNoPath: false, godMode: false, steps: null, emojiVersion: "1.0" };
 
     const sounds = Object.fromEntries(["closer", "farther", "no-path", "victory"].map(name => {
       const audio = new Audio(EMOJI_SOUNDS[name]);
@@ -125,14 +142,34 @@
       else if (after > (before ?? 0)) playSound("farther");
     }
 
-    function loadData() {
-      state.items = EMOJI_META.items;
-      state.count = EMOJI_META.count;
+    let fullVectors;
+    let activeNeighbors = EMOJI_NEIGHBORS;
+    let unreachableGoalEmojis;
+
+    function loadData(version = "1.0") {
+      fullVectors ||= window.MazeLib.base64ToFloat32Array(EMOJI_VECTORS_B64);
+      state.emojiVersion = version;
       state.dims = EMOJI_META.dims;
-      state.vectors = window.MazeLib.base64ToFloat32Array(EMOJI_VECTORS_B64);
+      if (version === "1.0") {
+        const subset = EMOJI_VERSION_1.indices;
+        state.items = subset.map(index => EMOJI_META.items[index]);
+        state.count = subset.length;
+        state.vectors = new Float32Array(state.count * state.dims);
+        subset.forEach((index, position) => {
+          state.vectors.set(window.MazeLib.getVector(fullVectors, state.dims, index), position * state.dims);
+        });
+        activeNeighbors = EMOJI_VERSION_1.neighbors;
+        unreachableGoalEmojis = new Set(EMOJI_VERSION_1.unreachableGoals);
+      } else {
+        state.items = EMOJI_META.items;
+        state.count = EMOJI_META.count;
+        state.vectors = fullVectors;
+        activeNeighbors = EMOJI_NEIGHBORS;
+        unreachableGoalEmojis = unreachableGoals15;
+      }
     }
 
-    const unreachableGoalEmojis = new Set(["🤗","🤤","🤡","💟","💔","🖤","🤍","🖖","🖕","👐","💅","🫁","🦷","🦸","🦹","🧍","🤺","🤼","🫂","👪","🦔","🪶","💮","🌹","🥀","🍄","🥕","🧄","🧅","🫚","🥨","🧀","🍖","🍗","🌭","🫕","🧈","🍠","🥠","🌍","🌎","🌏","🌐","🧱","🪵","🗽","⛲","⛺","🎪","🚥","🚦","🛑","💺","🪐","🌀","🌈","🥎","🥊","🥋","🥅","🔫","🎰","🧩","🃏","🀄","🧶","🪢","👔","🧣","🧤","🧥","🧦","🪖","💄","🎧","🔋","🧮","📁","📂","📅","📆","📌","📍","📎","🪓","🪚","🧰","🩹","🚪","🪑","🪠","🧴","🪣","🪦","🏧","🚸","🔯","♎","🛜","➖","➗","🟰","💱","❌","❎","🔟","🔢","🆚","🟥","🟨"]);
+    const unreachableGoals15 = new Set(["🤗","🤤","🤡","💟","💔","🖤","🤍","🖖","🖕","👐","💅","🫁","🦷","🦸","🦹","🧍","🤺","🤼","🫂","👪","🐪","🐫","🦙","🦔","🐨","🦘","🪶","💮","🌹","🥀","🌵","🍄","🥕","🧄","🧅","🫚","🥨","🧀","🍖","🍗","🌭","🫕","🧈","🍠","🥠","🧱","🪵","🗽","⛲","⛺","🎪","🚥","🚦","🛑","💺","🪐","🌀","🌈","🥎","🥊","🥋","🥅","🔫","🎰","🧩","🃏","🀄","🧶","🪢","👔","🧣","🧤","🧥","🧦","🪖","💄","🎧","🔋","🧮","📁","📂","📅","📆","📌","📍","📎","🪓","🪚","🧰","🩹","🚪","🪑","🪠","🧴","🪣","🪦","🏧","🚸","🔯","♎","🛜","➖","➗","🟰","💱","❌","❎","🔟","🔢","🆚","🟥","🟨"]);
 
     function goalCandidates(start) {
       const includeUnreachable = document.getElementById("impossible-mode").checked;
@@ -158,7 +195,7 @@
         state.vectors, state.dims, state.count, state.positionVector, [start], 9
       );
       state.goalHadNoPath = window.MazeLib.shortestDirectPath(
-        EMOJI_NEIGHBORS, initialChoices, state.goal, state.inventory
+        activeNeighbors, initialChoices, state.goal, state.inventory
       ) === null;
       render();
     }
@@ -169,15 +206,18 @@
         vectors, dims, count, state.positionVector, [...position, ...inventory], 9
       );
       const steps = window.MazeLib.goalReached(vectors, dims, count, state.positionVector, state.goal)
-        ? 0 : window.MazeLib.shortestDirectPath(EMOJI_NEIGHBORS, state.choices, state.goal, inventory);
+        ? 0 : window.MazeLib.shortestDirectPath(activeNeighbors, state.choices, state.goal, inventory);
       state.steps = steps;
       document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name}` + (state.godMode ? "" : ` | Streak: ${state.streak} | Steps: ${steps === null ? "no path" : steps}`);
       document.getElementById("here").textContent = `You are here: ${window.MazeLib.describePosition(items, position)}`;
       const inv = document.getElementById("inventory");
       inv.replaceChildren(document.createTextNode(inventory.length ? "Memory: " : "Memory: empty"));
       inventory.forEach((idx, i) => {
-        inv.appendChild(emojiButton(idx));
+        const memoryButton = emojiButton(idx);
+        enableHold(memoryButton, () => openMemoryMenu(idx));
+        inv.appendChild(memoryButton);
         const remove = document.createElement("button");
+        remove.className = "remove-button";
         remove.textContent = "×";
         remove.title = `Remove ${items[idx].name}`;
         remove.onclick = () => runCommand("-" + window.MazeLib.INVENTORY_KEYS[i]);
@@ -190,8 +230,14 @@
         const branch = window.MazeLib.nearestNeighborsFromVector(
           vectors, dims, count, window.MazeLib.getVector(vectors, dims, idx), [idx, ...inventory], 9
         );
-        li.appendChild(emojiButton(idx, `${i + 1}. `));
+        const mainButton = emojiButton(idx, `${i + 1}. `);
+        enableHold(mainButton, () => {
+          if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or memory is full.");
+          render();
+        });
+        li.appendChild(mainButton);
         const save = document.createElement("button");
+        save.className = "save-button";
         save.textContent = "+";
         save.title = `Save ${items[idx].name}`;
         save.onclick = () => runCommand("+" + (i + 1));
@@ -204,13 +250,59 @@
       renderGoalHistory();
     }
 
+    const mobileControls = matchMedia("(hover: none) and (pointer: coarse)");
+    let suppressHoldClick = false;
+    let memoryMenuIndex = null;
+
+    document.addEventListener("pointerdown", () => { suppressHoldClick = false; }, true);
+    document.addEventListener("click", event => {
+      if (suppressHoldClick && event.detail > 0) {
+        suppressHoldClick = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+
+    function enableHold(button, action) {
+      let timer;
+      let origin;
+      const cancel = () => { clearTimeout(timer); timer = null; };
+      button.addEventListener("pointerdown", event => {
+        if (!mobileControls.matches || event.pointerType === "mouse" || event.button !== 0) return;
+        cancel();
+        origin = { x: event.clientX, y: event.clientY };
+        timer = setTimeout(() => {
+          timer = null;
+          suppressHoldClick = true;
+          action();
+        }, 550);
+      });
+      button.addEventListener("pointermove", event => {
+        if (timer && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 10) cancel();
+      });
+      for (const name of ["pointerup", "pointercancel", "pointerleave"]) button.addEventListener(name, cancel);
+    }
+
+    function openMemoryMenu(index) {
+      memoryMenuIndex = index;
+      const item = state.items[index];
+      document.getElementById("memory-menu-item").textContent = `${item.emoji} ${item.name}`;
+      document.getElementById("memory-menu").showModal();
+    }
+
     function emojiButton(index, prefix = "") {
       const button = document.createElement("button");
       button.className = "emoji-button";
       button.dataset.emojiIndex = index;
       button.textContent = prefix + state.items[index].emoji;
       button.title = state.items[index].name;
-      button.onclick = () => {
+      button.addEventListener("contextmenu", event => { if (mobileControls.matches) event.preventDefault(); });
+      button.onclick = event => {
+        if (mobileControls.matches && suppressHoldClick) {
+          suppressHoldClick = false;
+          event.preventDefault();
+          return;
+        }
         state.selection.push(index);
         renderSelection();
       };
@@ -241,7 +333,7 @@
       state.selection = [];
       setMsg("");
       if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
-        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked });
+        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked, emojiVersion: state.emojiVersion });
         if (!state.godMode) state.streak += 1;
         playSound("victory");
         flashGoal(state.goal);
@@ -281,13 +373,13 @@
         document.getElementById("goal-total").textContent = "GOD MODE";
         return;
       }
-      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} (Emoji ${state.emojiVersion}) | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
       const list = document.getElementById("goal-history");
       list.replaceChildren();
       for (const entry of state.completedGoals) {
         const item = state.items[entry.index];
         const li = document.createElement("li");
-        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}${entry.impossibleMode ? " (Impossible mode)" : " (Normal mode)"}`;
+        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}${entry.impossibleMode ? " (Impossible mode)" : " (Normal mode)"} (Emoji ${entry.emojiVersion})`;
         list.appendChild(li);
       }
       const total = state.completedGoals.reduce((sum, entry) => sum + entry.milliseconds, 0);
@@ -358,6 +450,19 @@
       }
     });
 
+    document.getElementById("memory-cancel").onclick = () => document.getElementById("memory-menu").close();
+    document.getElementById("memory-delete").onclick = () => {
+      const position = state.inventory.indexOf(memoryMenuIndex);
+      if (position !== -1) state.inventory.splice(position, 1);
+      document.getElementById("memory-menu").close();
+      render();
+    };
+    document.getElementById("memory-menu").addEventListener("click", event => {
+      if (event.target === event.currentTarget) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+      }
+    });
     document.getElementById("move").onclick = () => {
       const input = document.getElementById("command");
       if (input.value.trim()) {
@@ -402,11 +507,15 @@
       message.textContent = "";
     });
     document.getElementById("impossible-mode").onchange = () => runCommand("quit");
-    loadData();
+    document.getElementById("emoji-version").onchange = event => {
+      loadData(event.target.value);
+      runCommand("quit");
+    };
+    loadData("1.0");
     startNewGame(true);
     setInterval(() => {
       if (state.godMode) return;
-      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} (Emoji ${state.emojiVersion}) | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
     }, 1000);
   </script>
 </body>
