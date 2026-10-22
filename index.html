@@ -58,11 +58,29 @@
   #cheat-message { font-size: .8rem; color: #888; margin-top: .3rem; }
   .mode-picker { display: block; font-size: .85rem; color: #aaa; margin: .4rem 0; }
   .mode-picker input { width: auto; accent-color: #dc2626; }
+  .branch { display: contents; }
   #memory-menu { background: #222; color: #eee; border: 1px solid #555; border-radius: 12px; padding: 1rem; max-width: calc(100vw - 3rem); }
   #memory-menu::backdrop { background: rgba(0,0,0,.45); }
   #memory-menu button { min-height: 44px; padding: .6rem 1rem; margin-top: .6rem; }
   #memory-delete { background: #b91c1c; }
   @media (hover: none) and (pointer: coarse) {
+    body { margin: 1rem auto; padding: 0 .6rem calc(var(--dock-height, 190px) + 1rem); }
+    .choices li { display: flex; align-items: center; flex-wrap: nowrap; gap: .2rem; }
+    .choices li > .emoji-button { flex: 0 0 82px; margin: 0; text-align: left; }
+    .branch { display: flex; flex: 1; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+    .branch::-webkit-scrollbar { display: none; }
+    .branch .emoji-button { flex: 0 0 44px; margin: 0; }
+    .branch-arrow { flex: 0 0 auto; color: #888; }
+    .emoji-button { min-height: 44px; }
+    #mobile-controls { position: fixed; left: 0; right: 0; bottom: var(--mobile-bottom, 0px); z-index: 50; background: #171717; border-top: 1px solid #444; padding: .5rem .6rem calc(.5rem + env(safe-area-inset-bottom)); box-sizing: border-box; }
+    #mobile-controls .inventory { max-height: 100px; overflow-y: auto; margin-bottom: .3rem; }
+    #mobile-controls .expression-row { max-width: none; }
+    #mobile-controls .toolbar { margin: .4rem 0 0; }
+    #mobile-controls .toolbar button { min-height: 44px; }
+    #expression-field { max-height: 100px; overflow-y: auto; }
+    #msg { position: fixed; left: .6rem; right: .6rem; bottom: calc(var(--mobile-bottom, 0px) + var(--dock-height, 190px) + .4rem); z-index: 60; background: #222; padding: .6rem; border-radius: 8px; box-shadow: 0 2px 16px #0008; }
+    #msg:empty { display: none; }
+    #goal-flash, #next-goal { inset: auto 0 auto; top: var(--mobile-top, 0px); height: max(0px, calc(var(--mobile-height, 100dvh) - var(--dock-height, 190px))); }
     .save-button, .remove-button { display: none; }
     .emoji-button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
   }
@@ -75,6 +93,7 @@
   <div class="here" id="here"></div>
   <ul class="choices" id="choices"></ul>
 
+  <div id="mobile-controls">
   <div class="inventory" id="inventory"></div>
   <div class="expression-row">
     <div id="expression-field">
@@ -87,6 +106,7 @@
     <button id="clear">Clear</button>
     <button id="random">Random jump</button>
     <button id="new-game">New game</button>
+  </div>
   </div>
   <div class="goal" id="goal"></div>
   <label class="mode-picker" title="Targets only the unreachable pool for the selected emoji set. Changing mode starts a new game.">
@@ -242,8 +262,14 @@
         save.title = `Save ${items[idx].name}`;
         save.onclick = () => runCommand("+" + (i + 1));
         li.appendChild(save);
-        li.appendChild(document.createTextNode(" → "));
-        for (const neighbor of branch) li.appendChild(emojiButton(neighbor));
+        const arrow = document.createElement("span");
+        arrow.className = "branch-arrow";
+        arrow.textContent = " → ";
+        li.appendChild(arrow);
+        const neighbors = document.createElement("span");
+        neighbors.className = "branch";
+        for (const neighbor of branch) neighbors.appendChild(emojiButton(neighbor));
+        li.appendChild(neighbors);
         list.appendChild(li);
       });
       renderSelection();
@@ -251,6 +277,23 @@
     }
 
     const mobileControls = matchMedia("(hover: none) and (pointer: coarse)");
+    function updateMobileViewport() {
+      if (!mobileControls.matches) return;
+      const viewport = window.visualViewport;
+      const top = viewport?.offsetTop || 0;
+      const height = viewport?.height || innerHeight;
+      const style = document.documentElement.style;
+      style.setProperty("--mobile-top", `${top}px`);
+      style.setProperty("--mobile-height", `${height}px`);
+      style.setProperty("--mobile-bottom", `${Math.max(0, innerHeight - top - height)}px`);
+      style.setProperty("--dock-height", `${document.getElementById("mobile-controls").getBoundingClientRect().height}px`);
+    }
+    new ResizeObserver(updateMobileViewport).observe(document.getElementById("mobile-controls"));
+    window.visualViewport?.addEventListener("resize", updateMobileViewport);
+    window.visualViewport?.addEventListener("scroll", updateMobileViewport);
+    window.addEventListener("resize", updateMobileViewport);
+    mobileControls.addEventListener("change", updateMobileViewport);
+    updateMobileViewport();
     let suppressHoldClick = false;
     let memoryMenuIndex = null;
 
