@@ -152,6 +152,11 @@
     <button id="mode-confirm" class="confirm-action">Confirm</button>
     <button id="mode-cancel" autofocus>Cancel</button>
   </dialog>
+  <dialog id="new-game-menu" class="action-menu" aria-labelledby="new-game-menu-label">
+    <div id="new-game-menu-label">Start a new game? This clears Memory and resets statistics.</div>
+    <button id="new-game-confirm" class="confirm-action">Confirm</button>
+    <button id="new-game-cancel" autofocus>Cancel</button>
+  </dialog>
   <script src="data.js"></script>
   <script src="maze.js"></script>
   <script src="neighbors.js"></script>
@@ -650,7 +655,7 @@
       document.getElementById("memory-menu").close();
       render();
     };
-    for (const id of ["memory-menu", "mode-menu"]) {
+    for (const id of ["memory-menu", "mode-menu", "new-game-menu"]) {
       document.getElementById(id).addEventListener("click", event => {
         if (event.target === event.currentTarget) {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -680,7 +685,12 @@
     document.getElementById("command").addEventListener("input", renderSelection);
     document.getElementById("clear").onclick = () => { state.selection = []; renderSelection(); };
     document.getElementById("random").onclick = () => runCommand("0");
-    document.getElementById("new-game").onclick = () => runCommand("quit");
+    document.getElementById("new-game").onclick = () => document.getElementById("new-game-menu").showModal();
+    document.getElementById("new-game-cancel").onclick = () => document.getElementById("new-game-menu").close();
+    document.getElementById("new-game-confirm").onclick = () => {
+      document.getElementById("new-game-menu").close();
+      runCommand("quit");
+    };
     function selectEmojiFont(value) {
       const selected = value === "noto" ? "noto" : "twemoji";
       document.getElementById("emoji-font").value = selected;

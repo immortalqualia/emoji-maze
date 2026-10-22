@@ -21,7 +21,7 @@ The screen shows nine main suggestions. Each row also previews nine neighbors of
 - Press **×** beside a Memory item to remove it.
 - **Clear** clears the selected expression without moving.
 - **Random jump** teleports to a random emoji while keeping the current target and Memory.
-- **New game** resets the session: target, starting position, Memory, streak, history, counters, and GOD MODE. The selected difficulty and font remain selected.
+- **New game** opens a **Confirm / Cancel** dialog. Only confirming resets the session: target, starting position, Memory, streak, history, counters, and GOD MODE. The selected difficulty and font remain selected.
 
 Saving to Memory does not apply an emoji's vector. Memory items only participate in an expression when explicitly selected. Emojis in Memory and emojis used in the current position are excluded from suggestions.
 
