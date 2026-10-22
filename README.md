@@ -1,29 +1,101 @@
-https://immortalqualia.github.io/emoji-maze/
+# Emoji Maze
 
-Emoji Maze — How to Play
-Reach the target emoji to increase your streak. Each completed quest starts a new round with a random starting point and target. Your inventory resets; your streak continues.
+[Play in your browser](https://immortalqualia.github.io/emoji-maze/)
 
-Moving
-Five nearby emojis are numbered 1–5. Type a number and press Enter to move there.
+Explore a semantic space of **1,146 emojis**. Find the target by moving between related emojis or combining their meanings.
 
-You can combine emojis by typing multiple numbers or inventory letters:
+The game runs entirely in the browser. No account, backend, installation, or live AI inference is required. You can also open the local `index.html` directly.
 
-25 — combine options 2 and 5.
-2q — combine option 2 with inventory item q.
-25qw — combine options 2 and 5 with inventory items q and w.
-Your selection becomes your new position: its vectors are added together, and the game shows the five emojis closest to that sum. Combining does not automatically replace your position with a single emoji.
+## How movement works
 
-Inventory
-+2 — save option 2 to your inventory.
-Saved emojis receive letters: q, w, e, r, t…
-q — move directly to the saved emoji assigned to q.
--q — remove item q.
-Saving an emoji does not move you or apply its vector. Inventory items only affect your position when you explicitly type their letters.
+Your position is a vector, not necessarily a single emoji. Selecting several emojis **adds their vectors together**. That sum becomes your new position; it is not replaced by the nearest individual emoji.
 
-Emojis in your inventory and emojis used in your current position are excluded from the five suggestions.
+The screen shows nine main suggestions. Each row also previews nine neighbors of its main emoji. **Every emoji in these rows is clickable**, including the smaller ones on the right.
 
-Other Commands
-0 — jump to a random emoji without losing your target, inventory, or streak.
-quit or exit — restart the round with a new starting point and target, clearing your inventory.
-Completing a Quest
-You reach the target when it is the closest emoji to your current position’s vector. Your streak increases by one, and the next round starts automatically.
+## Mouse controls
+
+- Click an emoji in the suggestions, previews, or **Memory** to add it to the expression field.
+- Select multiple emojis to combine them, then press **Move**.
+- Click an emoji inside the expression field to remove it.
+- Press **+** beside a main suggestion to save it to Memory.
+- Press **×** beside a Memory item to remove it.
+- **Clear** clears the selected expression without moving.
+- **Random jump** teleports to a random emoji while keeping the current target and Memory.
+- **New game** resets the session: target, starting position, Memory, streak, history, counters, and GOD MODE. The selected difficulty and font remain selected.
+
+Saving to Memory does not apply an emoji's vector. Memory items only participate in an expression when explicitly selected. Emojis in Memory and emojis used in the current position are excluded from suggestions.
+
+## Keyboard controls
+
+The text input is still available:
+
+- `1`–`9`: select a main suggestion and move.
+- `25`: move to the sum of suggestions 2 and 5.
+- `2q` or `25qw`: combine main suggestions with Memory items.
+- `q`: move to the first Memory item. Memory keys follow `qwertyuiopasdfghjklzxcvbnm`; the letters are not shown in the mouse interface.
+- `+2`: save main suggestion 2 to Memory.
+- `-q`: remove the first Memory item.
+- `0`: random jump.
+- `quit` or `exit`: full New game reset.
+
+Press **Enter** or **Move** to submit typed commands. One symbol and multiple symbols use the same vector-summing rule. Repeated selections add the same vector again.
+
+## Goals and modes
+
+A goal is reached when the target is the **nearest emoji to your position vector**, before suggestion exclusions are applied.
+
+Completing a goal plays a victory sound and flash, increases the streak, and starts a fresh round. Memory clears; completed-round history remains. The next target appears in the center with a white, misty glow and **FIND THIS EMOJI**.
+
+- **Normal mode** is the default. It excludes a fixed pool of 110 emojis from target selection.
+- **Impossible mode** selects targets **only from that pool of 110**.
+- Changing mode starts a new game and resets the session.
+
+The pool was identified as unreachable from the graph's selected central starting point, **🦙 llama**, using ordinary clicks without Memory manipulation, combinations, random jumps, or cheats. This is not a claim that these emojis are impossible from every starting point or under every game mechanic. Both modes keep all 1,146 emojis in the world.
+
+## Path hints and statistics
+
+**Steps** estimates the shortest route using the nine main suggestions at each position. It does not count combinations, Memory-letter teleports, random jumps, or shortcuts through the clickable previews. Memory exclusions are respected. `Steps: no path` means no route exists under that restricted movement model.
+
+Below the goal, the game tracks:
+
+- Starting emoji and target.
+- Time spent on the current goal and each completed goal.
+- Actual moves and random jumps.
+- Normal / Impossible mode.
+- Total completed-goal time, total moves, and total random jumps.
+
+A submitted expression counts as one move, regardless of its length. A random jump also counts as one move. Selecting, saving, or removing emojis does not count as a move.
+
+A completed round receives **(Steps: no path)** only if it had no ordinary route **at the start of that round**. Later changes do not alter this marker.
+
+## Sounds
+
+- Fewer Steps after a move: ascending, cheerful sound.
+- More Steps: descending, sad sound.
+- `no path`: a separate sound.
+- Goal reached: victory sound, taking priority over movement feedback.
+- Unchanged Steps: silence.
+
+For comparisons, the previous `no path` value is treated as zero. Audio starts in response to interaction; there is no startup sound.
+
+## GOD MODE
+
+The field at the bottom accepts an emoji from the dataset. Entering a valid emoji teleports there immediately, resets statistics, and replaces the statistics display with **GOD MODE**. Invalid input does not activate it.
+
+GOD MODE remains active across completed rounds. **New game** turns it off.
+
+## Emoji fonts
+
+The small bottom selector switches between **Twemoji COLR** and **Noto Color Emoji**. Both bundled fonts contain every emoji in this dataset. The choice is remembered locally when browser storage is available.
+
+Font licenses and attribution are included in `fonts/` in the published site (`web/fonts/` in the full local project).
+
+## Dataset
+
+- Unicode Emoji **15.0 or earlier**, fully qualified, single-codepoint entries only.
+- The 24 repetitive clock-face emojis are excluded. Watch, alarm clock, and hourglasses remain.
+- Inputs contain the emoji symbol, CLDR English name, and CLDR keywords.
+- Embeddings: **Jina v5 text-small text-matching**, 1,024 dimensions, **not normalized**.
+- Similarity and suggestions use **Euclidean distance** in the raw embedding space.
+
+The browser loads precomputed vectors. No model runs or downloads during play. The full local project also contains the Python data-building tools and the older console prototype; the GitHub repository contains the browser version.

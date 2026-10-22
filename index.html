@@ -56,6 +56,8 @@
   @media (prefers-reduced-motion: reduce) { #goal-flash.active, #goal-flash.active span { animation-duration: .2s; } #next-goal.active { animation: goal-flash 1s .2s both; } }
   .cheat-panel { margin-top: 1.5rem; max-width: 520px; }
   #cheat-message { font-size: .8rem; color: #888; margin-top: .3rem; }
+  .mode-picker { display: block; font-size: .85rem; color: #aaa; margin: .4rem 0; }
+  .mode-picker input { width: auto; accent-color: #dc2626; }
 </style>
 </head>
 <body>
@@ -79,6 +81,9 @@
     <button id="new-game">New game</button>
   </div>
   <div class="goal" id="goal"></div>
+  <label class="mode-picker" title="Targets only the 110 unreachable emojis. Changing mode starts a new game.">
+    <input type="checkbox" id="impossible-mode"> Impossible mode
+  </label>
   <div id="goal-timing"></div>
   <ol id="goal-history"></ol>
   <div id="goal-total"></div>
@@ -127,9 +132,19 @@
       state.vectors = window.MazeLib.base64ToFloat32Array(EMOJI_VECTORS_B64);
     }
 
+    const unreachableGoalEmojis = new Set(["🤗","🤤","🤡","💟","💔","🖤","🤍","🖖","🖕","👐","💅","🫁","🦷","🦸","🦹","🧍","🤺","🤼","🫂","👪","🦔","🪶","💮","🌹","🥀","🍄","🥕","🧄","🧅","🫚","🥨","🧀","🍖","🍗","🌭","🫕","🧈","🍠","🥠","🌍","🌎","🌏","🌐","🧱","🪵","🗽","⛲","⛺","🎪","🚥","🚦","🛑","💺","🪐","🌀","🌈","🥎","🥊","🥋","🥅","🔫","🎰","🧩","🃏","🀄","🧶","🪢","👔","🧣","🧤","🧥","🧦","🪖","💄","🎧","🔋","🧮","📁","📂","📅","📆","📌","📍","📎","🪓","🪚","🧰","🩹","🚪","🪑","🪠","🧴","🪣","🪦","🏧","🚸","🔯","♎","🛜","➖","➗","🟰","💱","❌","❎","🔟","🔢","🆚","🟥","🟨"]);
+
+    function goalCandidates(start) {
+      const includeUnreachable = document.getElementById("impossible-mode").checked;
+      return state.items.map((item, index) => index).filter(index =>
+        index !== start && (includeUnreachable ? unreachableGoalEmojis.has(state.items[index].emoji) : !unreachableGoalEmojis.has(state.items[index].emoji))
+      );
+    }
+
     function startNewGame(firstTime) {
       const start = Math.floor(Math.random() * state.count);
-      state.goal = window.MazeLib.randomDestination(state.count, start);
+      const candidates = goalCandidates(start);
+      state.goal = candidates[Math.floor(Math.random() * candidates.length)];
       state.goalStartedAt = performance.now();
       state.goalRandoms = 0;
       state.goalStart = start;
@@ -226,7 +241,7 @@
       state.selection = [];
       setMsg("");
       if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
-        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath });
+        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked });
         if (!state.godMode) state.streak += 1;
         playSound("victory");
         flashGoal(state.goal);
@@ -266,13 +281,13 @@
         document.getElementById("goal-total").textContent = "GOD MODE";
         return;
       }
-      document.getElementById("goal-timing").textContent = `Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
       const list = document.getElementById("goal-history");
       list.replaceChildren();
       for (const entry of state.completedGoals) {
         const item = state.items[entry.index];
         const li = document.createElement("li");
-        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}`;
+        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}${entry.impossibleMode ? " (Impossible mode)" : " (Normal mode)"}`;
         list.appendChild(li);
       }
       const total = state.completedGoals.reduce((sum, entry) => sum + entry.milliseconds, 0);
@@ -386,11 +401,12 @@
       event.target.value = "";
       message.textContent = "";
     });
+    document.getElementById("impossible-mode").onchange = () => runCommand("quit");
     loadData();
     startNewGame(true);
     setInterval(() => {
       if (state.godMode) return;
-      document.getElementById("goal-timing").textContent = `Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
+      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
     }, 1000);
   </script>
 </body>
