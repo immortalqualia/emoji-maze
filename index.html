@@ -74,6 +74,9 @@
     .choices li { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); align-items: center; gap: 0; padding: .15rem 0; }
     .choices .emoji-button { width: 100%; min-width: 0; min-height: 0; height: clamp(28px, 8vw, 40px); margin: 0; padding: 0; font-size: clamp(18px, 5.6vw, 26px); line-height: 1; }
     .choices li > .emoji-button { background: #252525; border-right: 1px solid #666; border-radius: 4px 0 0 4px; }
+    .choices li { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+    .choices li.is-holding { background: #7f1d1d; border-radius: 6px; }
+    .choices li.is-holding > .emoji-button { background: transparent; }
     .branch { display: contents; }
     .branch-arrow, .choice-number { display: none; }
     .emoji-button { min-height: 44px; }
@@ -345,7 +348,7 @@
           vectors, dims, count, window.MazeLib.getVector(vectors, dims, idx), [idx, ...inventory], 9
         );
         const mainButton = emojiButton(idx, `${i + 1}. `);
-        enableHold(mainButton, () => {
+        enableHold(li, () => {
           if (!saveToMemory(idx)) setMsg("Already saved or memory is full.");
           render();
         });
@@ -403,13 +406,19 @@
     function enableHold(button, action) {
       let timer;
       let origin;
-      const cancel = () => { clearTimeout(timer); timer = null; };
+      const cancel = () => {
+        clearTimeout(timer);
+        timer = null;
+        button.classList.remove("is-holding");
+      };
       button.addEventListener("pointerdown", event => {
         if (!mobileControls.matches || event.pointerType === "mouse" || event.button !== 0) return;
         cancel();
         origin = { x: event.clientX, y: event.clientY };
+        button.classList.add("is-holding");
         timer = setTimeout(() => {
           timer = null;
+          button.classList.remove("is-holding");
           suppressHoldClick = true;
           action();
         }, 550);
@@ -418,6 +427,7 @@
         if (timer && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 10) cancel();
       });
       for (const name of ["pointerup", "pointercancel", "pointerleave"]) button.addEventListener(name, cancel);
+      button.addEventListener("contextmenu", event => { if (mobileControls.matches) event.preventDefault(); });
     }
 
     function openMemoryMenu(index) {

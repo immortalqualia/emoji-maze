@@ -29,7 +29,7 @@ Saving to Memory does not apply an emoji's vector. Memory items only participate
 
 - Tap any emoji in the field or **Memory** to add it to the expression. Select one or more, then tap **Move**.
 - Tap a selected emoji inside the expression field to remove it.
-- Hold a **main emoji in the leftmost column** for about half a second to save it to Memory. Emojis to the right cannot be saved directly.
+- Hold **anywhere on a row** for about half a second to save its **leftmost main emoji** to Memory. The entire row highlights while held; holding a neighbor still saves the main emoji, not that neighbor.
 - Hold an emoji in **Memory** to open **Delete / Cancel**. Tap **Delete** to remove it, or **Cancel** to keep it.
 - A successful hold does not also select the emoji. Moving your finger cancels the hold, so scrolling does not accidentally save anything.
 
