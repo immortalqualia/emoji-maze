@@ -7,12 +7,12 @@
 <link id="emoji-font-style" rel="stylesheet" href="fonts/twemoji.css">
 <style>
   :root { --emoji-font: "Twemoji COLR"; }
-  body { font-family: var(--emoji-font), system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
+  body { font-family: var(--emoji-font), system-ui, sans-serif; width: min-content; max-width: min(640px, calc(100vw - 2rem)); margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
   h1 { font-size: 1.3rem; }
   .goal { font-size: 1.4rem; margin-bottom: 0.5rem; }
   .here { font-size: 1.4rem; margin: 0.5rem 0; }
   .inventory { color: #9cf; margin-bottom: 0.5rem; min-height: 1.2em; }
-  .choices { list-style: none; padding: 0; }
+  .choices { list-style: none; padding: 0; width: max-content; max-width: 100%; }
   .choices li { padding: 0.3rem 0; font-size: 1.2rem; cursor: pointer; }
   button { font-family: var(--emoji-font), system-ui, sans-serif; background: transparent; color: #eee; border: 0; border-radius: 6px; padding: .35rem .55rem; cursor: pointer; }
   button:hover { background: #b91c1c; }
@@ -32,8 +32,13 @@
   input { font-size: 1.1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; background: #222; color: #eee; border: 1px solid #444; }
   .streak { color: #fc6; }
   .msg { color: #f66; min-height: 1.2em; }
-  #goal-timing, #goal-total { font-size: .85rem; color: #aaa; }
-  #goal-history { padding-left: 1.5rem; font-size: .9rem; }
+  #goal-total { font-size: .85rem; color: #aaa; }
+  .stats-scroll { max-width: 100%; margin: .6rem 0; }
+  #goal-stats { border-collapse: collapse; width: 100%; max-width: 100%; font-size: .8rem; }
+  #goal-stats th, #goal-stats td { padding: .4rem .25rem; border-bottom: 1px solid #333; text-align: center; vertical-align: top; overflow-wrap: anywhere; }
+  #goal-stats th { color: #aaa; }
+  #goal-timing { color: #eee; }
+  #stats-total { font-weight: 700; color: #aaa; }
   .font-picker { font-size: .75rem; color: #888; margin-top: 1rem; }
   .font-picker select { background: #111; color: #aaa; border: 1px solid #444; font-size: inherit; }
   #goal-flash { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; z-index: 100; background: radial-gradient(circle, rgba(255,210,110,.5), transparent 65%); }
@@ -53,7 +58,7 @@
     70% { opacity: 1; transform: scale(1.05); filter: blur(0); }
     100% { opacity: 0; transform: scale(1.2) translateY(-20px); filter: blur(6px); }
   }
-  @media (prefers-reduced-motion: reduce) { #goal-flash.active, #goal-flash.active span { animation-duration: .2s; } #next-goal.active { animation: goal-flash 1s .2s both; } }
+
   .cheat-panel { margin-top: 1.5rem; max-width: 520px; }
   #cheat-message { font-size: .8rem; color: #888; margin-top: .3rem; }
   .mode-picker { display: block; font-size: .85rem; color: #aaa; margin: .4rem 0; }
@@ -64,7 +69,8 @@
   #memory-menu button { min-height: 44px; padding: .6rem 1rem; margin-top: .6rem; }
   #memory-delete { background: #b91c1c; }
   @media (hover: none) and (pointer: coarse) {
-    body { margin: 1rem auto; padding: 0 .6rem calc(var(--dock-height, 190px) + 1rem); }
+    body { width: auto; max-width: 640px; margin: 1rem auto; padding: 0 .6rem calc(var(--dock-height, 190px) + 1rem); }
+    .choices { width: 100%; }
     .choices li { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); align-items: center; gap: 0; padding: .15rem 0; }
     .choices .emoji-button { width: 100%; min-width: 0; min-height: 0; height: clamp(28px, 8vw, 40px); margin: 0; padding: 0; font-size: clamp(18px, 5.6vw, 26px); line-height: 1; }
     .choices li > .emoji-button { background: #252525; border-right: 1px solid #666; border-radius: 4px 0 0 4px; }
@@ -111,8 +117,14 @@
   <label class="mode-picker" title="Targets only the unreachable pool for the selected emoji set. Changing mode starts a new game.">
     <input type="checkbox" id="impossible-mode"> Impossible mode
   </label>
-  <div id="goal-timing"></div>
-  <ol id="goal-history"></ol>
+  <div class="stats-scroll" id="stats-scroll">
+    <table id="goal-stats" aria-label="Game statistics">
+      <thead><tr><th scope="col" title="Round">#</th><th scope="col" title="Start">Strt</th><th scope="col">Goal</th><th scope="col">Time</th><th scope="col" title="Moves">Mvs</th><th scope="col" title="Random jumps">Rnd</th><th scope="col" title="Successful additions to Memory">Mem</th><th scope="col" title="N: Normal, I: Impossible">Mode</th><th scope="col" title="Emoji set">Set</th></tr></thead>
+      <tbody id="goal-history"></tbody>
+      <tbody id="goal-timing"></tbody>
+      <tfoot id="stats-total"></tfoot>
+    </table>
+  </div>
   <div id="goal-total"></div>
   <div class="msg" id="msg"></div>
   <div class="help">digits + memory letters sum a vector | 0: random jump | +1..+9: save to memory | -&lt;letter&gt;: remove | quit: new game</div>
@@ -138,7 +150,78 @@
   <script src="version-1.js"></script>
   <script src="sounds-data.js"></script>
   <script>
-    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [], completedGoals: [], goalStartedAt: 0, goalRandoms: 0, totalRandoms: 0, goalStart: 0, goalSteps: 0, totalSteps: 0, goalHadNoPath: false, godMode: false, steps: null, emojiVersion: "1.0" };
+    const state = { vectors: null, dims: 0, count: 0, items: null, position: [], positionVector: null, inventory: [], goal: 0, streak: 0, choices: [], selection: [], completedGoals: [], goalStartedAt: 0, goalRandoms: 0, totalRandoms: 0, goalMemoryAdds: 0, totalMemoryAdds: 0, goalStart: 0, goalSteps: 0, totalSteps: 0, goalHadNoPath: false, godMode: false, steps: null, emojiVersion: "1.0" };
+
+    const SAVE_KEY = "emoji-maze-session";
+    const savedFields = ["position", "inventory", "selection", "goal", "goalStart", "streak", "completedGoals",
+      "goalRandoms", "totalRandoms", "goalMemoryAdds", "totalMemoryAdds", "goalSteps", "totalSteps", "goalHadNoPath", "godMode"];
+    let pausedAt = null;
+    let gameReady = false;
+    let storageWarningShown = false;
+
+    function roundElapsed() {
+      return Math.max(0, (pausedAt ?? performance.now()) - state.goalStartedAt);
+    }
+
+    function saveGame() {
+      if (!gameReady) return;
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+          version: 1, emojiVersion: state.emojiVersion, dataset: state.items.map(item => item.emoji).join(""),
+          impossibleMode: document.getElementById("impossible-mode").checked,
+          elapsed: roundElapsed(), command: document.getElementById("command").value,
+          state: Object.fromEntries(savedFields.map(key => [key, state[key]]))
+        }));
+      } catch (_) {
+        if (!storageWarningShown) setMsg("Progress cannot be saved: browser storage is unavailable or full.");
+        storageWarningShown = true;
+      }
+    }
+
+    function restoreGame() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+        if (!saved || saved.version !== 1 || !["1.0", "15.0"].includes(saved.emojiVersion)) return false;
+        loadData(saved.emojiVersion);
+        if (saved.dataset !== state.items.map(item => item.emoji).join("")) return false;
+        const data = saved.state;
+        const count = value => Number.isSafeInteger(value) && value >= 0;
+        const index = value => count(value) && value < state.count;
+        const indices = value => Array.isArray(value) && value.every(index);
+        if (!data || !indices(data.position) || !data.position.length || !indices(data.inventory) || !indices(data.selection)) return false;
+        if (data.inventory.length > window.MazeLib.INVENTORY_KEYS.length || new Set(data.inventory).size !== data.inventory.length) return false;
+        if (!index(data.goal) || !index(data.goalStart) || typeof data.godMode !== "boolean" || typeof data.goalHadNoPath !== "boolean") return false;
+        if (!["streak", "goalRandoms", "totalRandoms", "goalMemoryAdds", "totalMemoryAdds", "goalSteps", "totalSteps"].every(key => count(data[key]))) return false;
+        if (!Array.isArray(data.completedGoals) || !data.completedGoals.every(entry => entry && index(entry.start) && index(entry.index)
+          && Number.isFinite(entry.milliseconds) && entry.milliseconds >= 0 && count(entry.steps) && count(entry.randoms) && count(entry.memoryAdds)
+          && typeof entry.hadNoPath === "boolean" && typeof entry.impossibleMode === "boolean" && entry.emojiVersion === saved.emojiVersion)) return false;
+        if (!Number.isFinite(saved.elapsed) || saved.elapsed < 0 || typeof saved.command !== "string" || typeof saved.impossibleMode !== "boolean") return false;
+        for (const key of savedFields) state[key] = data[key];
+        state.positionVector = window.MazeLib.sumVectors(state.vectors, state.dims, state.position);
+        const now = performance.now();
+        state.goalStartedAt = now - saved.elapsed;
+        pausedAt = document.hidden ? now : null;
+        document.getElementById("emoji-version").value = saved.emojiVersion;
+        document.getElementById("impossible-mode").checked = saved.impossibleMode;
+        document.getElementById("command").value = saved.command;
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function pauseGame() {
+      if (pausedAt === null) pausedAt = performance.now();
+      saveGame();
+    }
+
+    function resumeGame() {
+      if (document.hidden) return;
+      if (pausedAt !== null) state.goalStartedAt += performance.now() - pausedAt;
+      pausedAt = null;
+      renderCurrentStats();
+      saveGame();
+    }
 
     const sounds = Object.fromEntries(["closer", "farther", "no-path", "victory"].map(name => {
       const audio = new Audio(EMOJI_SOUNDS[name]);
@@ -202,7 +285,9 @@
       const candidates = goalCandidates(start);
       state.goal = candidates[Math.floor(Math.random() * candidates.length)];
       state.goalStartedAt = performance.now();
+      pausedAt = document.hidden ? state.goalStartedAt : null;
       state.goalRandoms = 0;
+      state.goalMemoryAdds = 0;
       state.goalStart = start;
       state.goalSteps = 0;
       state.goalHadNoPath = false;
@@ -217,6 +302,13 @@
         activeNeighbors, initialChoices, state.goal, state.inventory
       ) === null;
       render();
+    }
+
+    function saveToMemory(index) {
+      if (!window.MazeLib.addToInventory(state.inventory, index)) return false;
+      state.goalMemoryAdds += 1;
+      state.totalMemoryAdds += 1;
+      return true;
     }
 
     function render() {
@@ -251,7 +343,7 @@
         );
         const mainButton = emojiButton(idx, `${i + 1}. `);
         enableHold(mainButton, () => {
-          if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or memory is full.");
+          if (!saveToMemory(idx)) setMsg("Already saved or memory is full.");
           render();
         });
         li.appendChild(mainButton);
@@ -369,6 +461,7 @@
         box.appendChild(button);
       });
       document.getElementById("move").disabled = state.selection.length === 0 && !document.getElementById("command").value.trim();
+      saveGame();
     }
 
     function applyExpression(indices) {
@@ -381,7 +474,7 @@
       state.selection = [];
       setMsg("");
       if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
-        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: performance.now() - state.goalStartedAt, randoms: state.goalRandoms, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked, emojiVersion: state.emojiVersion });
+        if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: roundElapsed(), randoms: state.goalRandoms, memoryAdds: state.goalMemoryAdds, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked, emojiVersion: state.emojiVersion });
         if (!state.godMode) state.streak += 1;
         playSound("victory");
         flashGoal(state.goal);
@@ -414,24 +507,51 @@
       return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
     }
 
+    function statsRow(label, entry) {
+      const row = document.createElement("tr");
+      const start = state.items[entry.start];
+      const goal = state.items[entry.index];
+      const values = [label, start.emoji, `${goal.emoji}${entry.hadNoPath ? " (no path)" : ""}`,
+        formatTime(entry.milliseconds), entry.steps, entry.randoms, entry.memoryAdds,
+        entry.impossibleMode ? "I" : "N", entry.emojiVersion];
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      }
+      row.cells[7].title = entry.impossibleMode ? "Impossible mode" : "Normal mode";
+      return row;
+    }
+
+    function renderCurrentStats() {
+      if (state.godMode) return;
+      const elapsed = roundElapsed();
+      document.getElementById("goal-timing").replaceChildren(statsRow("Now", {
+        start: state.goalStart, index: state.goal, milliseconds: elapsed,
+        steps: state.goalSteps, randoms: state.goalRandoms, memoryAdds: state.goalMemoryAdds,
+        hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked,
+        emojiVersion: state.emojiVersion
+      }));
+      const totalTime = state.completedGoals.reduce((sum, entry) => sum + entry.milliseconds, elapsed);
+      const row = document.createElement("tr");
+      for (const value of ["Total", "", "", formatTime(totalTime), state.totalSteps, state.totalRandoms, state.totalMemoryAdds, "", ""]) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      }
+      document.getElementById("stats-total").replaceChildren(row);
+    }
+
     function renderGoalHistory() {
-      if (state.godMode) {
-        document.getElementById("goal-timing").textContent = "";
-        document.getElementById("goal-history").replaceChildren();
-        document.getElementById("goal-total").textContent = "GOD MODE";
-        return;
-      }
-      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} (Emoji ${state.emojiVersion}) | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
-      const list = document.getElementById("goal-history");
-      list.replaceChildren();
-      for (const entry of state.completedGoals) {
-        const item = state.items[entry.index];
-        const li = document.createElement("li");
-        li.textContent = `${state.items[entry.start].emoji} ${state.items[entry.start].name} → ${item.emoji} ${item.name} — ${formatTime(entry.milliseconds)} | Moves: ${entry.steps} | Random jumps: ${entry.randoms}${entry.hadNoPath ? " (Steps: no path)" : ""}${entry.impossibleMode ? " (Impossible mode)" : " (Normal mode)"} (Emoji ${entry.emojiVersion})`;
-        list.appendChild(li);
-      }
-      const total = state.completedGoals.reduce((sum, entry) => sum + entry.milliseconds, 0);
-      document.getElementById("goal-total").textContent = `Completed goals total: ${formatTime(total)} | Total moves: ${state.totalSteps} | Random jumps: ${state.totalRandoms}`;
+      document.getElementById("stats-scroll").hidden = state.godMode;
+      document.getElementById("goal-total").textContent = state.godMode ? "GOD MODE" : "";
+      const history = document.getElementById("goal-history");
+      history.replaceChildren();
+      document.getElementById("goal-timing").replaceChildren();
+      document.getElementById("stats-total").replaceChildren();
+      if (state.godMode) return;
+      state.completedGoals.forEach((entry, index) => history.appendChild(statsRow(index + 1, entry)));
+      renderCurrentStats();
     }
 
     function setMsg(text) {
@@ -447,6 +567,7 @@
         state.streak = 0;
         state.completedGoals = [];
         state.totalRandoms = 0;
+        state.totalMemoryAdds = 0;
         state.totalSteps = 0;
         document.getElementById("command").value = "";
         document.getElementById("cheat-emoji").value = "";
@@ -473,7 +594,7 @@
       }
       if (command.length === 2 && command[0] === "+" && "123456789".includes(command[1])) {
         const idx = state.choices[Number(command[1]) - 1];
-        if (!window.MazeLib.addToInventory(state.inventory, idx)) setMsg("Already saved or memory is full.");
+        if (!saveToMemory(idx)) setMsg("Already saved or memory is full.");
         render();
         return;
       }
@@ -495,6 +616,7 @@
         const input = e.target;
         runCommand(input.value);
         input.value = "";
+        renderSelection();
       }
     });
 
@@ -544,10 +666,13 @@
         state.streak = 0;
         state.completedGoals = [];
         state.totalRandoms = 0;
+        state.totalMemoryAdds = 0;
         state.totalSteps = 0;
         state.goalSteps = 0;
         state.goalRandoms = 0;
+        state.goalMemoryAdds = 0;
         state.goalStartedAt = performance.now();
+        pausedAt = document.hidden ? state.goalStartedAt : null;
       }
       state.godMode = true;
       applyExpression([index]);
@@ -559,12 +684,18 @@
       loadData(event.target.value);
       runCommand("quit");
     };
-    loadData("1.0");
-    startNewGame(true);
-    setInterval(() => {
-      if (state.godMode) return;
-      document.getElementById("goal-timing").textContent = `${document.getElementById("impossible-mode").checked ? "Impossible mode" : "Normal mode"} (Emoji ${state.emojiVersion}) | Start: ${state.items[state.goalStart].emoji} → Goal: ${state.items[state.goal].emoji} | Time: ${formatTime(performance.now() - state.goalStartedAt)} | Moves: ${state.goalSteps} | Random jumps: ${state.goalRandoms}`;
-    }, 1000);
+    if (restoreGame()) {
+      gameReady = true;
+      render();
+    } else {
+      loadData("1.0");
+      gameReady = true;
+      startNewGame(true);
+    }
+    document.addEventListener("visibilitychange", () => document.hidden ? pauseGame() : resumeGame());
+    window.addEventListener("pagehide", pauseGame);
+    window.addEventListener("pageshow", resumeGame);
+    setInterval(() => { renderCurrentStats(); saveGame(); }, 1000);
   </script>
 </body>
 </html>

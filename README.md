@@ -25,6 +25,16 @@ The screen shows nine main suggestions. Each row also previews nine neighbors of
 
 Saving to Memory does not apply an emoji's vector. Memory items only participate in an expression when explicitly selected. Emojis in Memory and emojis used in the current position are excluded from suggestions.
 
+## Touch controls (phones and tablets)
+
+- Tap any emoji in the field or **Memory** to add it to the expression. Select one or more, then tap **Move**.
+- Tap a selected emoji inside the expression field to remove it.
+- Hold a **main emoji in the leftmost column** for about half a second to save it to Memory. Emojis to the right cannot be saved directly.
+- Hold an emoji in **Memory** to open **Delete / Cancel**. Tap **Delete** to remove it, or **Cancel** to keep it.
+- A successful hold does not also select the emoji. Moving your finger cancels the hold, so scrolling does not accidentally save anything.
+
+The phone field shows all nine rows without horizontal scrolling. The main emojis are distinguished by a background and separator; row numbers, arrows, and the desktop **+ / ×** controls are hidden. Memory, the expression field, and **Move** stay at the bottom of the screen.
+
 ## Keyboard controls
 
 The text input is still available:
@@ -67,6 +77,14 @@ Below the goal, the game tracks:
 A submitted expression counts as one move, regardless of its length. A random jump also counts as one move. Selecting, saving, or removing emojis does not count as a move.
 
 A completed round receives **(Steps: no path)** only if it had no ordinary route **at the start of that round**. Later changes do not alter this marker.
+
+## Saved games
+
+Progress is saved automatically in this browser after actions, periodically during play, and when the page goes into the background. Reopening or reloading the page restores the position (including combined vectors), target, Memory, expression, streak, statistics, selected emoji set, and mode, including GOD MODE.
+
+The round timer pauses while the page is hidden and resumes when you return. Time spent with the page closed is not counted. **New game** replaces the saved session with a fresh one.
+
+Saves are local to the browser and site, not shared between devices. Clearing site data removes them; private browsing or blocked/full browser storage may prevent persistence. Incompatible or damaged saves start a fresh game rather than breaking the page.
 
 ## Sounds
 
