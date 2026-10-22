@@ -65,12 +65,11 @@
   #memory-delete { background: #b91c1c; }
   @media (hover: none) and (pointer: coarse) {
     body { margin: 1rem auto; padding: 0 .6rem calc(var(--dock-height, 190px) + 1rem); }
-    .choices li { display: flex; align-items: center; flex-wrap: nowrap; gap: .2rem; }
-    .choices li > .emoji-button { flex: 0 0 82px; margin: 0; text-align: left; }
-    .branch { display: flex; flex: 1; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
-    .branch::-webkit-scrollbar { display: none; }
-    .branch .emoji-button { flex: 0 0 44px; margin: 0; }
-    .branch-arrow { flex: 0 0 auto; color: #888; }
+    .choices li { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); align-items: center; gap: 0; padding: .15rem 0; }
+    .choices .emoji-button { width: 100%; min-width: 0; min-height: 0; height: clamp(28px, 8vw, 40px); margin: 0; padding: 0; font-size: clamp(18px, 5.6vw, 26px); line-height: 1; }
+    .choices li > .emoji-button { background: #252525; border-right: 1px solid #666; border-radius: 4px 0 0 4px; }
+    .branch { display: contents; }
+    .branch-arrow, .choice-number { display: none; }
     .emoji-button { min-height: 44px; }
     #mobile-controls { position: fixed; left: 0; right: 0; bottom: var(--mobile-bottom, 0px); z-index: 50; background: #171717; border-top: 1px solid #444; padding: .5rem .6rem calc(.5rem + env(safe-area-inset-bottom)); box-sizing: border-box; }
     #mobile-controls .inventory { max-height: 100px; overflow-y: auto; margin-bottom: .3rem; }
@@ -337,7 +336,13 @@
       const button = document.createElement("button");
       button.className = "emoji-button";
       button.dataset.emojiIndex = index;
-      button.textContent = prefix + state.items[index].emoji;
+      if (prefix) {
+        const number = document.createElement("span");
+        number.className = "choice-number";
+        number.textContent = prefix;
+        button.appendChild(number);
+      }
+      button.appendChild(document.createTextNode(state.items[index].emoji));
       button.title = state.items[index].name;
       button.addEventListener("contextmenu", event => { if (mobileControls.matches) event.preventDefault(); });
       button.onclick = event => {
