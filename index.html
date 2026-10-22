@@ -64,10 +64,10 @@
   .mode-picker { display: block; font-size: .85rem; color: #aaa; margin: .4rem 0; }
   .mode-picker input { width: auto; accent-color: #dc2626; }
   .branch { display: contents; }
-  #memory-menu { background: #222; color: #eee; border: 1px solid #555; border-radius: 12px; padding: 1rem; max-width: calc(100vw - 3rem); }
-  #memory-menu::backdrop { background: rgba(0,0,0,.45); }
-  #memory-menu button { min-height: 44px; padding: .6rem 1rem; margin-top: .6rem; }
-  #memory-delete { background: #b91c1c; }
+  .action-menu { background: #222; color: #eee; border: 1px solid #555; border-radius: 12px; padding: 1rem; max-width: calc(100vw - 3rem); }
+  .action-menu::backdrop { background: rgba(0,0,0,.45); }
+  .action-menu button { min-height: 44px; padding: .6rem 1rem; margin-top: .6rem; }
+  .action-menu .confirm-action { background: #b91c1c; }
   @media (hover: none) and (pointer: coarse) {
     body { width: auto; max-width: 640px; margin: 1rem auto; padding: 0 .6rem calc(var(--dock-height, 190px) + 1rem); }
     .choices { width: 100%; }
@@ -117,9 +117,9 @@
   </div>
   </div>
   <div class="goal" id="goal"></div>
-  <label class="mode-picker" title="Targets only the unreachable pool for the selected emoji set. Changing mode starts a new game.">
-    <input type="checkbox" id="impossible-mode"> Impossible mode
-  </label>
+  <div class="mode-picker" title="Targets only the unreachable pool for the selected emoji set. Changing mode requires confirmation and starts a new game.">
+    <input type="checkbox" id="impossible-mode" aria-label="Impossible mode"> <span>Impossible mode</span>
+  </div>
   <div class="stats-scroll" id="stats-scroll">
     <table id="goal-stats" aria-label="Game statistics">
       <thead><tr><th scope="col" title="Round">#</th><th scope="col" title="Start">Strt</th><th scope="col">Goal</th><th scope="col">Time</th><th scope="col" title="Moves">Mvs</th><th scope="col" title="Random jumps">Rnd</th><th scope="col" title="Successful additions to Memory">Mem</th><th scope="col" title="Total items used in expressions with two or more items">Cmb</th><th scope="col" title="N: Normal, I: Impossible">Mode</th><th scope="col" title="Emoji set">Set</th></tr></thead>
@@ -142,10 +142,15 @@
   <label class="font-picker">Emoji set:
     <select id="emoji-version" title="Changing the emoji set starts a new game."><option value="1.0" selected>1.0</option><option value="15.0">15.0</option></select>
   </label>
-  <dialog id="memory-menu">
+  <dialog id="memory-menu" class="action-menu">
     <div id="memory-menu-item"></div>
-    <button id="memory-delete">Delete</button>
+    <button id="memory-delete" class="confirm-action">Delete</button>
     <button id="memory-cancel">Cancel</button>
+  </dialog>
+  <dialog id="mode-menu" class="action-menu" aria-labelledby="mode-menu-label">
+    <div id="mode-menu-label"></div>
+    <button id="mode-confirm" class="confirm-action">Confirm</button>
+    <button id="mode-cancel" autofocus>Cancel</button>
   </dialog>
   <script src="data.js"></script>
   <script src="maze.js"></script>
@@ -281,11 +286,11 @@
     function goalCandidates(start) {
       const includeUnreachable = document.getElementById("impossible-mode").checked;
       return state.items.map((item, index) => index).filter(index =>
-        index !== start && (includeUnreachable ? unreachableGoalEmojis.has(state.items[index].emoji) : !unreachableGoalEmojis.has(state.items[index].emoji))
+        index !== start && !state.inventory.includes(index) && (includeUnreachable ? unreachableGoalEmojis.has(state.items[index].emoji) : !unreachableGoalEmojis.has(state.items[index].emoji))
       );
     }
 
-    function startNewGame(firstTime) {
+    function startNewGame() {
       const start = Math.floor(Math.random() * state.count);
       const candidates = goalCandidates(start);
       state.goal = candidates[Math.floor(Math.random() * candidates.length)];
@@ -300,9 +305,8 @@
       state.selection = [];
       state.position = [start];
       state.positionVector = window.MazeLib.getVector(state.vectors, state.dims, start).slice();
-      if (!firstTime) state.inventory = [];
       const initialChoices = window.MazeLib.nearestNeighborsFromVector(
-        state.vectors, state.dims, state.count, state.positionVector, [start], 9
+        state.vectors, state.dims, state.count, state.positionVector, [start, ...state.inventory], 9
       );
       state.goalHadNoPath = window.MazeLib.shortestDirectPath(
         activeNeighbors, initialChoices, state.goal, state.inventory
@@ -495,7 +499,7 @@
         if (!state.godMode) state.streak += 1;
         playSound("victory");
         flashGoal(state.goal);
-        startNewGame(false);
+        startNewGame();
         showNextGoal();
       } else {
         render();
@@ -581,6 +585,7 @@
       if (!command) return;
       if (command === "quit" || command === "exit") {
         state.godMode = false;
+        state.inventory = [];
         state.streak = 0;
         state.completedGoals = [];
         state.totalRandoms = 0;
@@ -592,7 +597,7 @@
         document.getElementById("cheat-message").textContent = "";
         document.getElementById("goal-flash").classList.remove("active");
         document.getElementById("next-goal").classList.remove("active");
-        startNewGame(false);
+        startNewGame();
         return;
       }
       if (command === "0") {
@@ -645,12 +650,25 @@
       document.getElementById("memory-menu").close();
       render();
     };
-    document.getElementById("memory-menu").addEventListener("click", event => {
-      if (event.target === event.currentTarget) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
-      }
-    });
+    for (const id of ["memory-menu", "mode-menu"]) {
+      document.getElementById(id).addEventListener("click", event => {
+        if (event.target === event.currentTarget) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+        }
+      });
+    }
+    let pendingMode = null;
+    document.getElementById("mode-cancel").onclick = () => document.getElementById("mode-menu").close();
+    document.getElementById("mode-menu").addEventListener("close", () => { pendingMode = null; });
+    document.getElementById("mode-confirm").onclick = () => {
+      if (pendingMode === null) return;
+      const next = pendingMode;
+      pendingMode = null;
+      document.getElementById("mode-menu").close();
+      document.getElementById("impossible-mode").checked = next;
+      runCommand("quit");
+    };
     document.getElementById("move").onclick = () => {
       const input = document.getElementById("command");
       if (input.value.trim()) {
@@ -699,7 +717,12 @@
       event.target.value = "";
       message.textContent = "";
     });
-    document.getElementById("impossible-mode").onchange = () => runCommand("quit");
+    document.getElementById("impossible-mode").onchange = event => {
+      pendingMode = event.target.checked;
+      event.target.checked = !pendingMode;
+      document.getElementById("mode-menu-label").textContent = `${pendingMode ? "Enable" : "Disable"} Impossible mode? This starts a new game and resets statistics.`;
+      document.getElementById("mode-menu").showModal();
+    };
     document.getElementById("emoji-version").onchange = event => {
       loadData(event.target.value);
       runCommand("quit");
@@ -710,7 +733,7 @@
     } else {
       loadData("1.0");
       gameReady = true;
-      startNewGame(true);
+      startNewGame();
     }
     document.addEventListener("visibilitychange", () => document.hidden ? pauseGame() : resumeGame());
     window.addEventListener("pagehide", pauseGame);

@@ -54,11 +54,11 @@ Press **Enter** or **Move** to submit typed commands. One symbol and multiple sy
 
 A goal is reached when the target is the **nearest emoji to your position vector**, before suggestion exclusions are applied.
 
-Completing a goal plays a victory sound and flash, increases the streak, and starts a fresh round. Memory clears; completed-round history remains. The next target appears in the center with a white, misty glow and **FIND THIS EMOJI**.
+Completing a goal plays a victory sound and flash, increases the streak, and starts a fresh round. Memory carries over to the next round; completed-round history remains. New targets are never chosen from Memory. Only **New game** (including a confirmed mode change or emoji-set change) clears Memory. The per-round **Mem** counter resets, while the total retains all successful additions. The next target appears in the center with a white, misty glow and **FIND THIS EMOJI**.
 
 - **Normal mode** is the default. It excludes a fixed pool of 110 emojis from target selection.
 - **Impossible mode** selects targets **only from that pool of 110**.
-- Changing mode starts a new game and resets the session.
+- Use the **checkbox itself** to change mode; tapping the text or the rest of its row does nothing. A **Confirm / Cancel** dialog warns that confirming starts a new game and resets the session. Canceling keeps the current mode and progress.
 
 The pool was identified as unreachable from the graph's selected central starting point, **🦙 llama**, using ordinary clicks without Memory manipulation, combinations, random jumps, or cheats. This is not a claim that these emojis are impossible from every starting point or under every game mechanic. Both modes keep all 1,146 emojis in the world.
 
