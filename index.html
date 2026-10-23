@@ -295,8 +295,7 @@
       );
     }
 
-    function startNewGame() {
-      const start = Math.floor(Math.random() * state.count);
+    function startNewGame(start = Math.floor(Math.random() * state.count)) {
       const candidates = goalCandidates(start);
       state.goal = candidates[Math.floor(Math.random() * candidates.length)];
       state.goalStartedAt = performance.now();
@@ -331,7 +330,7 @@
       state.choices = window.MazeLib.nearestNeighborsFromVector(
         vectors, dims, count, state.positionVector, [...position, ...inventory], 9
       );
-      const steps = window.MazeLib.goalReached(vectors, dims, count, state.positionVector, state.goal)
+      const steps = window.MazeLib.goalReached(position, state.goal)
         ? 0 : window.MazeLib.shortestDirectPath(activeNeighbors, state.choices, state.goal, inventory);
       state.steps = steps;
       document.getElementById("goal").textContent = `Goal: ${items[state.goal].emoji}  ${items[state.goal].name}` + (state.godMode ? "" : ` | Streak: ${state.streak} | Steps: ${steps === null ? "no path" : steps}`);
@@ -499,12 +498,12 @@
       state.positionVector = window.MazeLib.sumVectors(state.vectors, state.dims, indices);
       state.selection = [];
       setMsg("");
-      if (window.MazeLib.goalReached(state.vectors, state.dims, state.count, state.positionVector, state.goal)) {
+      if (window.MazeLib.goalReached(state.position, state.goal)) {
         if (!state.godMode) state.completedGoals.push({ index: state.goal, start: state.goalStart, steps: state.goalSteps, milliseconds: roundElapsed(), randoms: state.goalRandoms, memoryAdds: state.goalMemoryAdds, combinedItems: state.goalCombinedItems, hadNoPath: state.goalHadNoPath, impossibleMode: document.getElementById("impossible-mode").checked, emojiVersion: state.emojiVersion });
         if (!state.godMode) state.streak += 1;
         playSound("victory");
         flashGoal(state.goal);
-        startNewGame();
+        startNewGame(state.goal);
         showNextGoal();
       } else {
         render();

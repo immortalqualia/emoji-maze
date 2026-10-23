@@ -52,9 +52,9 @@ Press **Enter** or **Move** to submit typed commands. One symbol and multiple sy
 
 ## Goals and modes
 
-A goal is reached when the target is the **nearest emoji to your position vector**, before suggestion exclusions are applied.
+A goal is reached only by moving to the **target emoji itself as a single item**. A combination does not count, even if the target is its nearest neighbor or is included among its operands.
 
-Completing a goal plays a victory sound and flash, increases the streak, and starts a fresh round. Memory carries over to the next round; completed-round history remains. New targets are never chosen from Memory. Only **New game** (including a confirmed mode change or emoji-set change) clears Memory. The per-round **Mem** counter resets, while the total retains all successful additions. The next target appears in the center with a white, misty glow and **FIND THIS EMOJI**.
+Completing a goal plays a victory sound and flash, increases the streak, and starts the next round **from the emoji you just reached**, without teleporting. Only the target and per-round timer/counters change. **New game** picks a random starting point; **Random jump** remains available during play. Memory carries over to the next round; completed-round history remains. New targets are never chosen from Memory. Only **New game** (including a confirmed mode change or emoji-set change) clears Memory. The per-round **Mem** counter resets, while the total retains all successful additions. The next target appears in the center with a white, misty glow and **FIND THIS EMOJI**.
 
 - **Normal mode** is the default. It excludes a fixed pool of 110 emojis from target selection.
 - **Impossible mode** selects targets **only from that pool of 110**.

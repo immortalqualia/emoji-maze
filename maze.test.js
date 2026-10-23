@@ -105,9 +105,13 @@ function flat(rows) {
 
 // goalReached
 {
-  const { data, dims } = flat([[0], [5], [10]]);
-  assertEqual(goalReached(data, dims, 3, vec([5.1]), 1), true, "goal reached when nearest");
-  assertEqual(goalReached(data, dims, 3, vec([5.1]), 2), false, "goal not reached when not nearest");
+  assertEqual(goalReached([1], 1), true, "single goal emoji wins");
+  assertEqual(goalReached([0], 0), true, "goal at index zero wins");
+  assertEqual(goalReached([0], 1), false, "different emoji does not win");
+  assertEqual(goalReached([0, 2], 1), false, "combination does not win");
+  assertEqual(goalReached([1, 2], 1), false, "including goal in a combination does not win");
+  assertEqual(goalReached([1, 1], 1), false, "repeating goal does not win");
+  assertEqual(goalReached([], 1), false, "empty position does not win");
 }
 
 // randomDestination never returns current index

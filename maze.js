@@ -80,8 +80,8 @@ function describePosition(items, position) {
   return `${emojis}  ${names}`;
 }
 
-function goalReached(vectors, dims, count, positionVector, goalIndex) {
-  return nearestNeighborsFromVector(vectors, dims, count, positionVector, [], 1)[0] === goalIndex;
+function goalReached(position, goalIndex) {
+  return position.length === 1 && position[0] === goalIndex;
 }
 
 function randomDestination(count, currentIndex) {
